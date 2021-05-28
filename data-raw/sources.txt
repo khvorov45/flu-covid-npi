@@ -1,0 +1,11 @@
+Publicly-available datasets:
+
+flu data: https://www.who.int/tools/flunet and to determine whether the flu reported to flunet is real gisaid/nextstrain, where countries that have sequencing data available are those in which we think flu really was circulating and not just false positives
+
+npi data: the oxford stringency tracker seems to have 2 websites and also a lot of associated data, probably from the above covid trackers
+
+https://data.humdata.org/dataset/oxford-covid-19-government-response-tracker
+
+https://ourworldindata.org/grapher/covid-stringency-index
+
+covid data: https://covid19.who.int/ or https://coronavirus.jhu.edu/
