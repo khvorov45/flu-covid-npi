@@ -9,3 +9,8 @@ https://data.humdata.org/dataset/oxford-covid-19-government-response-tracker
 https://ourworldindata.org/grapher/covid-stringency-index
 
 covid data: https://covid19.who.int/ or https://coronavirus.jhu.edu/
+
+=============================
+
+Country codes:
+https://www.iban.com/country-codes
