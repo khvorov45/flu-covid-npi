@@ -45,6 +45,8 @@ flu_surveillance_raw <- map_dfr(
   )
 )
 
+sequences_raw <- read_raw_xls("gisaid_epiflu_isolates", guess_max = 1e5)
+
 country_codes_raw <- read_raw_csv("country-codes")
 
 # Country names have to match =================================================
@@ -90,23 +92,9 @@ covid_cases_renamed <- covid_cases_raw %>%
       `Deaths - cumulative total per 100000 population`
   )
 
-compare_vectors(
-  covid_cases_renamed$country_name, country_rks_fixed$name,
-  "covid", "codes"
-) %>%
-  select(covid) %>%
-  filter(!is.na(covid))
-
 # There are some '(the)' appearances in country codes
 country_codes_the_fixed <- country_rks_fixed %>%
   mutate(name = str_replace(name, "\\(the\\)", "") %>% str_trim())
-
-compare_vectors(
-  covid_cases_renamed$country_name, country_codes_the_fixed$name,
-  "covid", "codes"
-) %>%
-  select(covid) %>%
-  filter(!is.na(covid))
 
 # Special cases
 country_special_fixed <- country_codes_the_fixed %>%
@@ -115,7 +103,7 @@ country_special_fixed <- country_codes_the_fixed %>%
       "Virgin Islands (British)" = "British Virgin Islands",
       "Côte d'Ivoire" = "Ivory Coast",
       "Korea (the Democratic People's Republic of)" = "North Korea",
-      "Congo (the Democratic Republic of the)" = "West Congo",
+      "Congo (the Democratic Republic of the)" = "East Congo",
       "Falkland Islands  [Malvinas]" = "Falkland Islands",
       "Republic of North Macedonia" = "North Macedonia",
       "Northern Mariana Islands" = "Mariana Islands",
@@ -128,6 +116,11 @@ country_special_fixed <- country_codes_the_fixed %>%
       "Sint Maarten (Dutch part)" = "Sint Maarten",
       "Tanzania, United Republic of" = "Tanzania",
       "Virgin Islands (U.S.)" = "US Virgin Islands",
+      "Bolivia (Plurinational State of)" = "Bolivia",
+      "Brunei Darussalam" = "Brunei",
+      "Lao People's Democratic Republic" = "Lao",
+      "Taiwan (Province of China)" = "Taiwan",
+      "Viet Nam" = "Vietnam"
     )
   ) %>%
   filter(name != "Bonaire, Sint Eustatius and Saba")
@@ -138,7 +131,7 @@ covid_special_countries <- covid_cases_renamed %>%
       country_name,
       "Côte d’Ivoire" = "Ivory Coast",
       "Democratic People's Republic of Korea" = "North Korea",
-      "Democratic Republic of the Congo" = "West Congo",
+      "Democratic Republic of the Congo" = "East Congo",
       "Falkland Islands (Malvinas)" = "Falkland Islands",
       "Kosovo[1]" = "Kosovo",
       "Northern Mariana Islands (Commonwealth of the)" = "Mariana Islands",
@@ -149,6 +142,10 @@ covid_special_countries <- covid_cases_renamed %>%
       "Republic of Moldova" = "Moldova",
       "United Republic of Tanzania" = "Tanzania",
       "United States Virgin Islands" = "US Virgin Islands",
+      "Bolivia (Plurinational State of)" = "Bolivia",
+      "Brunei Darussalam" = "Brunei",
+      "Viet Nam" = "Vietnam",
+      "Lao People's Democratic Republic" = "Lao",
     )
   ) %>%
   filter(
@@ -180,13 +177,6 @@ flu_surveillance_renamed <- flu_surveillance_raw %>%
     total_neg = ALL_INF2,
   )
 
-compare_vectors(
-  flu_surveillance_renamed$country_name, country_special_fixed$name,
-  "flu", "codes"
-) %>%
-  select(flu) %>%
-  filter(!is.na(flu))
-
 # Special cases
 flu_surveillance_special_fixed <- flu_surveillance_renamed %>%
   mutate(
@@ -194,7 +184,7 @@ flu_surveillance_special_fixed <- flu_surveillance_renamed %>%
       country_name,
       "Côte d'Ivoire" = "Ivory Coast",
       "Democratic People's Republic of Korea" = "North Korea",
-      "Democratic Republic of the Congo" = "West Congo",
+      "Democratic Republic of the Congo" = "East Congo",
       "Kosovo (in accordance with Security Council resolution 1244 (1999))" =
         "Kosovo",
       "West Bank and Gaza Strip" = "Palestine",
@@ -202,7 +192,10 @@ flu_surveillance_special_fixed <- flu_surveillance_renamed %>%
       "Republic of Korea" = "South Korea",
       "Republic of Moldova" = "Moldova",
       "United Republic of Tanzania" = "Tanzania",
-      "Turks and Caicos Is." = "Turks and Caicos Islands"
+      "Turks and Caicos Is." = "Turks and Caicos Islands",
+      "Bolivia (Plurinational State of)" = "Bolivia",
+      "Viet Nam" = "Vietnam",
+      "Lao People's Democratic Republic" = "Lao",
     )
   )
 
@@ -212,3 +205,42 @@ compare_vectors(
 ) %>%
   select(flu) %>%
   filter(!is.na(flu))
+
+# Sequences countries =========================================================
+
+sequences_renamed <- sequences_raw %>%
+  select(
+    virus_name = Isolate_Name, subtype = Subtype, lineage = Lineage,
+    location = Location
+  )
+
+sequences_countries <- sequences_renamed %>%
+  mutate(
+    country_name = location %>%
+      str_split("/") %>%
+      map(2) %>%
+      as.character() %>%
+      str_trim() %>%
+      recode(
+        "NULL" = "Russian Federation",
+        "United States" = "United States of America",
+        "United Kingdom" = "UK",
+        "Bolivia, Plurinationial State of" = "Bolivia",
+        "Congo, the Democatic Republic of" = "East Congo",
+        "Cote d'Ivoire" = "Ivory Coast",
+        "Czech Republic" = "Czechia",
+        "Hong Kong (SAR)" = "Hong Kong",
+        "Korea, Republic of" = "South Korea",
+        "Lao, People's Democratic Republic" = "Lao",
+        "Macedonia, the former Yogoslav Republic of" = "North Macedonia",
+        "Moldova, Republic of" = "Moldova",
+        "Saint Kitts and Nevis, Federation of" = "Saint Kitts and Nevis",
+      )
+  )
+
+compare_vectors(
+  sequences_countries$country_name, country_special_fixed$name,
+  "sequences", "codes"
+) %>%
+  select(sequences) %>%
+  filter(!is.na(sequences))
