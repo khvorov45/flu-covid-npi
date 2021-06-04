@@ -165,16 +165,20 @@ flu_surveillance_renamed <- flu_surveillance_raw %>%
   select(
     country_name = Country, year = Year, week = Week,
     week_start_date = SDATE, week_end_date = EDATE,
-    received = SPEC_RECEIVED_NB, processed = SPEC_PROCESSED_NB,
-    a_h1 = AH1, a_h1n1pdm = AH1N12009,
-    a_h3 = AH3, a_h5 = AH5,
-    a_not_subtyped = ANOTSUBTYPED,
-    a_total = INF_A,
-    b_yam = BYAMAGATA, b_vic = BVICTORIA,
-    b_undetermined = BNOTDETERMINED,
-    b_total = INF_B,
-    total_pos = ALL_INF,
-    total_neg = ALL_INF2,
+    count_received = SPEC_RECEIVED_NB,
+    count_processed = SPEC_PROCESSED_NB,
+    count_a_h1 = AH1,
+    count_a_h1n1pdm = AH1N12009,
+    count_a_h3 = AH3,
+    count_a_h5 = AH5,
+    count_a_not_subtyped = ANOTSUBTYPED,
+    count_a_total = INF_A,
+    count_b_yam = BYAMAGATA,
+    count_b_vic = BVICTORIA,
+    count_b_undetermined = BNOTDETERMINED,
+    count_b_total = INF_B,
+    count_total_pos = ALL_INF,
+    count_total_neg = ALL_INF2,
   )
 
 # Special cases
@@ -244,3 +248,54 @@ compare_vectors(
 ) %>%
   select(sequences) %>%
   filter(!is.na(sequences))
+
+# Subtype encoding ============================================================
+
+sequence_subtype_fixed <- sequences_countries %>%
+  mutate(
+    lineage = lineage %>% recode("Victoria" = "Vic", "Yamagata" = "Yam"),
+    subtype = subtype %>%
+      str_replace("A / ", "") %>%
+      str_trim() %>%
+      paste0(if_else(is.na(lineage), "", lineage)) %>%
+      recode(
+        "H1N1" = "H1",
+        "H1N1pdm09" = "H1",
+        "H1N2" = "H1",
+        "H3N2" = "H3",
+        "H5N1" = "H5",
+        "H5N6" = "H5",
+        "H5N8" = "H5",
+        "H9N2" = "H9"
+      ),
+  )
+
+
+flu_subtypes <- flu_surveillance_special_fixed %>%
+  pivot_longer(
+    contains("count_"),
+    names_to = "count_name", values_to = "count"
+  ) %>%
+  mutate(
+    count_name = count_name %>% str_replace("count_", "")
+  ) %>%
+  filter(!count_name %in% c(
+    "received", "processed", "total_pos", "b_total", "a_total", "total_neg"
+  )) %>%
+  mutate(
+    subtype = count_name %>% recode(
+      "a_h1" = "H1",
+      "a_h3" = "H3",
+      "a_h1n1pdm" = "H1",
+      "a_h5" = "H5",
+      "a_not_subtyped" = "A",
+      "b_vic" = "BVic",
+      "b_yam" = "BYam",
+      "b_undetermined" = "B"
+    )
+  )
+
+compare_vectors(
+  sequence_subtype_fixed$subtype,
+  flu_subtypes$subtype, "seq", "flu"
+)
