@@ -352,7 +352,7 @@ stringency_final <- stringency_rks_fixed %>%
     country_final %>% select(code3, country_name = name),
     by = c("country_code" = "code3")
   ) %>%
-  select(-country_code)
+  select(-country_code, date = date_value)
 
 compare_vectors(
   stringency_final$country_name,
