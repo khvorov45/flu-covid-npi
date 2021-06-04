@@ -30,6 +30,8 @@ compare_vectors <- function(vec1, vec2, vec1_lbl = "in1", vec2_lbl = "in2") {
     filter(!is.na(!!rlang::sym(vec1_lbl)) | !is.na(!!rlang::sym(vec2_lbl)))
 }
 
+save_data <- \(data, name) write_csv(data, glue::glue("data/{name}.csv"))
+
 # The data ====================================================================
 
 stringency_raw <- read_raw_csv("stringency")
@@ -299,3 +301,66 @@ compare_vectors(
   sequence_subtype_fixed$subtype,
   flu_subtypes$subtype, "seq", "flu"
 )
+
+# Save data ===================================================================
+
+sequence_final <- sequence_subtype_fixed
+flu_final <- flu_subtypes
+country_final <- country_special_fixed
+covid_final <- covid_special_countries
+
+compare_vectors(
+  sequence_final$subtype,
+  flu_final$subtype, "seq", "flu"
+)
+compare_vectors(
+  sequence_final$country_name,
+  country_final$name, "seq", "country"
+) %>%
+  select(seq) %>%
+  filter(!is.na(seq))
+
+save_data(sequence_final, "sequence")
+
+compare_vectors(
+  flu_final$country_name,
+  country_final$name, "flu", "country"
+) %>%
+  select(flu) %>%
+  filter(!is.na(flu))
+
+save_data(flu_final, "flu")
+
+compare_vectors(
+  covid_final$country_name,
+  country_final$name, "covid", "country"
+) %>%
+  select(covid) %>%
+  filter(!is.na(covid))
+
+save_data(covid_final, "covid")
+
+compare_vectors(
+  stringency_rks_fixed$country_code,
+  country_final$code3, "stringency", "country"
+) %>%
+  select(stringency) %>%
+  filter(!is.na(stringency))
+
+stringency_final <- stringency_rks_fixed %>%
+  inner_join(
+    country_final %>% select(code3, country_name = name),
+    by = c("country_code" = "code3")
+  ) %>%
+  select(-country_code)
+
+compare_vectors(
+  stringency_final$country_name,
+  country_final$name, "stringency", "country"
+) %>%
+  select(stringency) %>%
+  filter(!is.na(stringency))
+
+save_data(stringency_final, "stringency")
+
+save_data(country_final, "country")
