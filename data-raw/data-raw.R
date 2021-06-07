@@ -2,7 +2,7 @@ library(tidyverse)
 
 save_csv <- \(data, name) write_csv(data, glue::glue("data-raw/{name}.csv"))
 
-read_csv("https://covid19.who.int/WHO-COVID-19-global-table-data.csv") %>%
+read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv") %>%
   save_csv("covid-cases")
 
 stringency <- httr::GET(
