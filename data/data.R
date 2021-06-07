@@ -71,8 +71,10 @@ stringency_raw %>% filter(country_code == "RKS")
 stringency_rks_fixed <- stringency_raw %>%
   mutate(country_code = recode(country_code, "RKS" = "KOS"))
 
+country_codes_raw %>% filter(code2 == "KS" | code3 == "KOS" | name == "Kosovo")
+
 country_rks_fixed <- country_codes_raw %>%
-  bind_rows(tibble(name = "Kosovo", code2 = NA, code3 = "KOS", code_num = NA))
+  bind_rows(tibble(name = "Kosovo", code2 = "KS", code3 = "KOS", code_num = NA))
 
 compare_vectors(
   stringency_rks_fixed$country_code, country_rks_fixed$code3,
@@ -85,14 +87,59 @@ compare_vectors(
 
 covid_cases_renamed <- covid_cases_raw %>%
   select(
-    country_name = Name,
-    cases_cumulative_total = `Cases - cumulative total`,
-    cases_cumulative_total_per_100000 =
-      `Cases - cumulative total per 100000 population`,
-    deaths_cumulative_total = `Deaths - cumulative total`,
-    deaths_cumulative_total_per_100000 =
-      `Deaths - cumulative total per 100000 population`
+    date = Date_reported,
+    country_code = Country_code,
+    country_name = Country,
+    cases_new = New_cases,
+    deaths_new = New_deaths
   )
+
+compare_vectors(
+  covid_cases_renamed$country_code, country_rks_fixed$code2,
+  "covid", "codes"
+) %>%
+  select(covid) %>%
+  filter(!is.na(covid))
+
+covid_cases_codes_fixed <- covid_cases_renamed %>%
+  filter(
+    # Bonaire, Saint Eustatious and Saba
+    !country_code %in% c("XA", "XB", "XC")
+  ) %>%
+  mutate(
+    # Kosovo
+    country_code = recode(country_code, "XK" = "KS")
+  )
+
+compare_vectors(
+  covid_cases_codes_fixed$country_code, country_rks_fixed$code2,
+  "covid", "codes"
+) %>%
+  select(covid) %>%
+  filter(!is.na(covid))
+
+# Flu surveillance countries ==================================================
+
+flu_surveillance_renamed <- flu_surveillance_raw %>%
+  select(
+    country_name = Country, year = Year, week = Week,
+    week_start_date = SDATE, week_end_date = EDATE,
+    count_received = SPEC_RECEIVED_NB,
+    count_processed = SPEC_PROCESSED_NB,
+    count_a_h1 = AH1,
+    count_a_h1n1pdm = AH1N12009,
+    count_a_h3 = AH3,
+    count_a_h5 = AH5,
+    count_a_not_subtyped = ANOTSUBTYPED,
+    count_a_total = INF_A,
+    count_b_yam = BYAMAGATA,
+    count_b_vic = BVICTORIA,
+    count_b_undetermined = BNOTDETERMINED,
+    count_b_total = INF_B,
+    count_total_pos = ALL_INF,
+    count_total_neg = ALL_INF2,
+  )
+
 
 # There are some '(the)' appearances in country codes
 country_codes_the_fixed <- country_rks_fixed %>%
@@ -124,63 +171,6 @@ country_special_fixed <- country_codes_the_fixed %>%
       "Taiwan (Province of China)" = "Taiwan",
       "Viet Nam" = "Vietnam"
     )
-  ) %>%
-  filter(name != "Bonaire, Sint Eustatius and Saba")
-
-covid_special_countries <- covid_cases_renamed %>%
-  mutate(
-    country_name = recode(
-      country_name,
-      "Côte d’Ivoire" = "Ivory Coast",
-      "Democratic People's Republic of Korea" = "North Korea",
-      "Democratic Republic of the Congo" = "East Congo",
-      "Falkland Islands (Malvinas)" = "Falkland Islands",
-      "Kosovo[1]" = "Kosovo",
-      "Northern Mariana Islands (Commonwealth of the)" = "Mariana Islands",
-      "occupied Palestinian territory, including east Jerusalem" = "Palestine",
-      "The United Kingdom" = "UK",
-      "Pitcairn Islands" = "Pitcairn",
-      "Republic of Korea" = "South Korea",
-      "Republic of Moldova" = "Moldova",
-      "United Republic of Tanzania" = "Tanzania",
-      "United States Virgin Islands" = "US Virgin Islands",
-      "Bolivia (Plurinational State of)" = "Bolivia",
-      "Brunei Darussalam" = "Brunei",
-      "Viet Nam" = "Vietnam",
-      "Lao People's Democratic Republic" = "Lao",
-    )
-  ) %>%
-  filter(
-    !country_name %in% c("Global", "Other", "Bonaire", "Sint Eustatius", "Saba")
-  )
-
-compare_vectors(
-  covid_special_countries$country_name, country_special_fixed$name,
-  "covid", "codes"
-) %>%
-  select(covid) %>%
-  filter(!is.na(covid))
-
-# Flu surveillance countries ==================================================
-
-flu_surveillance_renamed <- flu_surveillance_raw %>%
-  select(
-    country_name = Country, year = Year, week = Week,
-    week_start_date = SDATE, week_end_date = EDATE,
-    count_received = SPEC_RECEIVED_NB,
-    count_processed = SPEC_PROCESSED_NB,
-    count_a_h1 = AH1,
-    count_a_h1n1pdm = AH1N12009,
-    count_a_h3 = AH3,
-    count_a_h5 = AH5,
-    count_a_not_subtyped = ANOTSUBTYPED,
-    count_a_total = INF_A,
-    count_b_yam = BYAMAGATA,
-    count_b_vic = BVICTORIA,
-    count_b_undetermined = BNOTDETERMINED,
-    count_b_total = INF_B,
-    count_total_pos = ALL_INF,
-    count_total_neg = ALL_INF2,
   )
 
 # Special cases
@@ -307,7 +297,6 @@ compare_vectors(
 sequence_final <- sequence_subtype_fixed
 flu_final <- flu_subtypes
 country_final <- country_special_fixed
-covid_final <- covid_special_countries
 
 compare_vectors(
   sequence_final$subtype,
@@ -330,6 +319,21 @@ compare_vectors(
   filter(!is.na(flu))
 
 save_data(flu_final, "flu")
+
+compare_vectors(
+  covid_cases_codes_fixed$country_code,
+  country_final$code2, "covid", "country"
+) %>%
+  select(covid) %>%
+  filter(!is.na(covid))
+
+covid_final <- covid_cases_codes_fixed %>%
+  select(-country_name) %>%
+  inner_join(
+    select(country_final, code2, country_name = name),
+    c("country_code" = "code2")
+  ) %>%
+  select(-country_code)
 
 compare_vectors(
   covid_final$country_name,
