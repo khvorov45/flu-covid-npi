@@ -1,0 +1,2 @@
+Median stringency to median rate per 100,000 for flu and covid.
+Date range: 2020-01-02 to 2021-05-30
