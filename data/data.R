@@ -30,6 +30,9 @@ compare_vectors <- function(vec1, vec2, vec1_lbl = "in1", vec2_lbl = "in2") {
     filter(!is.na(!!rlang::sym(vec1_lbl)) | !is.na(!!rlang::sym(vec2_lbl)))
 }
 
+extract_week_and_year <- \(d) d %>%
+  mutate(week = lubridate::isoweek(date), year = lubridate::year(date))
+
 save_data <- \(data, name) write_csv(data, glue::glue("data/{name}.csv"))
 
 # The data ====================================================================
@@ -261,7 +264,7 @@ compare_vectors(
 sequences_renamed <- sequences_raw %>%
   select(
     virus_name = Isolate_Name, subtype = Subtype, lineage = Lineage,
-    location = Location
+    location = Location, date = Collection_Date
   )
 
 sequences_countries <- sequences_renamed %>%
@@ -296,9 +299,16 @@ compare_vectors(
   select(sequences) %>%
   filter(!is.na(sequences))
 
+# Sequences dates ============================================================
+
+sequence_date_fixed <- sequences_countries %>%
+  # There will be NA's corresponding to incomplete dates (e.g. '2021')
+  mutate(date = lubridate::ymd(date, quiet = TRUE)) %>%
+  extract_week_and_year()
+
 # Subtype encoding ============================================================
 
-sequence_subtype_fixed <- sequences_countries %>%
+sequence_subtype_fixed <- sequence_date_fixed %>%
   mutate(
     lineage = lineage %>% recode("Victoria" = "Vic", "Yamagata" = "Yam"),
     subtype = subtype %>%
@@ -385,6 +395,7 @@ compare_vectors(
   filter(!is.na(covid))
 
 covid_final <- covid_cases_codes_fixed %>%
+  extract_week_and_year() %>%
   select(-country_name) %>%
   inner_join(
     select(country_final, code2, country_name = name),
@@ -413,7 +424,8 @@ stringency_final <- stringency_rks_fixed %>%
     country_final %>% select(code3, country_name = name),
     by = c("country_code" = "code3")
   ) %>%
-  select(-country_code, date = date_value)
+  select(-country_code, date = date_value) %>%
+  extract_week_and_year()
 
 compare_vectors(
   stringency_final$country_name,
