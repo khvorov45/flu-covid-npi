@@ -23,9 +23,6 @@ monday_from_week_year <- function(year, week) {
 
 read_data <- \(name) read_csv(glue::glue("data/{name}.csv"), col_types = cols())
 
-extract_week_and_year <- \(d) d %>%
-  mutate(week = lubridate::isoweek(date), year = lubridate::year(date))
-
 # Relevant range for all summaries
 # 2020-03-02 -> 2021-05-30, weeks are Mon-Sun (isoweek)
 filter_dates <- \(d) d %>% filter(
@@ -33,11 +30,9 @@ filter_dates <- \(d) d %>% filter(
 )
 
 stringency <- read_data("stringency") %>%
-  extract_week_and_year() %>%
   filter_dates()
 
 covid <- read_data("covid") %>%
-  extract_week_and_year() %>%
   filter_dates()
 
 flu <- read_data("flu") %>% filter_dates()
