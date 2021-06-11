@@ -5,6 +5,8 @@ save_csv <- \(data, name) write_csv(data, glue::glue("data-raw/{name}.csv"))
 read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv") %>%
   save_csv("covid-cases")
 
+read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19_Unified-Dataset/master/COVID-19_LUT.csv", guess_max = 1e5) %>% save_csv("covid-cases-jhu")
+
 stringency <- httr::GET(
   "https://covidtrackerapi.bsg.ox.ac.uk/api/v2/stringency/date-range/2020-01-01/2021-12-31",
   httr::config(timeout = 1e6),

@@ -10,7 +10,8 @@ https://data.humdata.org/dataset/oxford-covid-19-government-response-tracker
 
 https://ourworldindata.org/grapher/covid-stringency-index
 
-covid data: https://covid19.who.int/ or https://coronavirus.jhu.edu/
+covid data: https://covid19.who.int/ or
+https://coronavirus.jhu.edu/ the data: https://github.com/CSSEGISandData
 
 =============================
 
