@@ -203,6 +203,72 @@ compare_vectors(
   select(covid) %>%
   filter(!is.na(covid))
 
+# Covid cases from JHU countries =============================================
+
+# The 'lookup' table (contains countries/states)
+covid_jhu_lut_raw <- read_raw_csv("covid-cases-jhu-lut", guess_max = 1e5)
+
+covid_jhu_lut_renamed <- covid_jhu_lut_raw %>%
+  rename(code3 = ISO1_3C)
+
+covid_jhu_lut_codes_fixed <- covid_jhu_lut_renamed %>%
+  mutate(code3 = recode(code3, "XKX" = "KOS")) %>%
+  filter(code3 != "XXX") # Cruise ships
+
+compare_vectors(
+  covid_jhu_lut_codes_fixed$code3, country_rks_fixed$code3, "covid", "country"
+) %>%
+  filter(!is.na(covid)) %>%
+  select(covid)
+
+covid_jhu_lut_no_missing_id <- covid_jhu_lut_codes_fixed %>%
+  mutate(ID = replace_na(ID, "NA")) # This is actually Nambia
+
+# The actual data
+covid_jhu_raw <- readRDS("data-raw/covid-cases-jhu.rds")
+
+# Of course ID's in cases don't always match ID's in the 'lookup'
+# table, what a joke
+covid_jhu_ids_fixed <- covid_jhu_raw %>%
+  filter(!is.na(ID), !ID %in% c("XX97", "XX99", "XXXX"))
+
+compare_vectors(
+  covid_jhu_ids_fixed$ID, covid_jhu_lut_no_missing_id$ID, "case", "lut"
+) %>%
+  filter(!is.na(case)) %>%
+  select(case)
+
+covid_jhu_filtered <- covid_jhu_ids_fixed %>%
+  filter(Type == "Confirmed", Age == "Total", Sex == "Total")
+
+covid_jhu_with_names <- covid_jhu_filtered %>%
+  inner_join(covid_jhu_lut_no_missing_id, "ID")
+
+compare_vectors(
+  covid_jhu_with_names$code3, country_rks_fixed$code3, "case", "country"
+) %>%
+  filter(!is.na(case)) %>%
+  select(case)
+
+covid_jhu_with_countries <- covid_jhu_with_names %>%
+  inner_join(country_final, "code3")
+
+unique(covid_jhu_with_countries$Age)
+unique(covid_jhu_with_countries$Sex)
+
+covid_jhu_with_countries_renamed <- covid_jhu_with_countries %>%
+  select(
+    cases_new = Cases_New, date = Date,
+    country_name = name
+  )
+
+covid_jhu_summarised <- covid_jhu_with_countries_renamed %>%
+  group_by(date, country_name) %>%
+  summarise(
+    .groups = "drop",
+    cases_new = sum(cases_new, na.rm = TRUE),
+  )
+
 # Flu surveillance countries ==================================================
 
 flu_surveillance_renamed <- flu_surveillance_raw %>%
@@ -411,6 +477,18 @@ compare_vectors(
   filter(!is.na(covid))
 
 save_data(covid_final, "covid")
+
+covid_jhu_final <- covid_jhu_summarised %>%
+  extract_week_and_year()
+
+compare_vectors(
+  covid_jhu_final$country_name,
+  country_final$name, "covid", "country"
+) %>%
+  select(covid) %>%
+  filter(!is.na(covid))
+
+save_data(covid_jhu_final, "covid-jhu")
 
 compare_vectors(
   stringency_rks_fixed$country_code,

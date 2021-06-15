@@ -12,8 +12,7 @@ read_csv(
   save_csv("covid-cases-jhu-lut")
 
 download.file(
-  "https://github.com/CSSEGISandData/COVID-19_Unified-Dataset/raw/master/COVID-19.rds","data-raw/covid-cases-jhu.rds",
-  method="curl"
+  "https://github.com/CSSEGISandData/COVID-19_Unified-Dataset/raw/master/COVID-19.rds", "data-raw/covid-cases-jhu.rds",
 )
 
 stringency <- httr::GET(
