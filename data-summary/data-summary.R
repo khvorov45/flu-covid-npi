@@ -98,43 +98,64 @@ countries_of_interest <- function(data) {
     )
 }
 
-average_plot <- flu_covid_average %>%
-  # This will only keep the data for which we have stringency
-  inner_join(stringency_average, "country_name") %>%
-  ggplot(aes(stringency_median, rate_per_1e5_median)) +
-  ggdark::dark_theme_bw(verbose = FALSE) +
-  theme(
-    panel.spacing = unit(0, "lines"),
-    strip.background = element_blank(),
-  ) +
-  facet_wrap(
-    ~disease,
-    ncol = 1, scales = "free_y", strip.position = "right",
-    labeller = as_labeller(function(breaks) {
-      recode(
-        breaks,
-        "covid" = "COVID", "covid_jhu" = "COVID (JHU)", "flu" = "Flu"
-      )
-    })
-  ) +
-  coord_cartesian(xlim = c(0, 100)) +
-  scale_x_continuous(
-    "Median stringency",
-    breaks = seq(0, 100, 10),
-    expand = expansion(0, 0)
-  ) +
-  scale_y_continuous("Median rate per 100,000") +
-  geom_point() +
-  geom_point(
-    shape = 0, size = 4, data = . %>% countries_of_interest(), color = "red"
-  ) +
-  geom_label(
-    aes(label = country_name, vjust = vjust, hjust = hjust),
-    data = . %>% countries_of_interest(),
-    alpha = 0.5
-  )
+plot_scatter <- function(data, ylab, ylim = c(NA, NA)) {
+  data %>%
+    ggplot(aes(stringency_median, rate_per_1e5_median)) +
+    theme_bw() +
+    theme(
+      panel.spacing = unit(0, "lines"),
+      strip.background = element_blank(),
+    ) +
+    coord_cartesian(xlim = c(0, 100), ylim = ylim) +
+    scale_y_continuous(ylab) +
+    scale_x_continuous(
+      "Median stringency",
+      breaks = seq(0, 100, 10),
+      expand = expansion(0, 0)
+    ) +
+    geom_point() +
+    geom_point(
+      shape = 0, size = 4, data = . %>% countries_of_interest(), color = "red"
+    ) +
+    geom_label(
+      aes(label = country_name, vjust = vjust, hjust = hjust),
+      data = . %>% countries_of_interest(),
+      alpha = 0.5
+    )
+}
 
-save_plot(average_plot, "average", width = 17, height = 20)
+flu_covid_average_with_stringency <- flu_covid_average %>%
+  inner_join(stringency_average, "country_name")
+
+flu_av_plot <- flu_covid_average_with_stringency %>%
+  filter(disease == "flu") %>%
+  plot_scatter("Flu rate per 100,000")
+
+covid_ylim <- c(0, 300)
+
+covid_av_plot <- flu_covid_average_with_stringency %>%
+  filter(disease == "covid") %>%
+  plot_scatter("COVID rate per 100,000", covid_ylim)
+
+covid_jhu_av_plot <- flu_covid_average_with_stringency %>%
+  filter(disease == "covid_jhu") %>%
+  plot_scatter("COVID (JHU) rate per 100,000", covid_ylim)
+
+theme_no_x <- theme(
+  axis.text.x = element_blank(),
+  axis.title.x = element_blank(),
+  axis.ticks.x = element_blank()
+)
+
+av_plots <- ggpubr::ggarrange(
+  covid_av_plot + theme_no_x,
+  covid_jhu_av_plot + theme_no_x,
+  flu_av_plot,
+  ncol = 1,
+  align = "v"
+)
+
+save_plot(av_plots, "average", width = 17, height = 20)
 
 # =============================================================================
 # Average timeline across countries
@@ -208,12 +229,6 @@ flu_average_time_plot <- flu_weekly_counts %>%
 
 stringency_average_time_plot <- stringency %>%
   plot_spag(date, stringency, "Stringency")
-
-theme_no_x <- theme(
-  axis.text.x = element_blank(),
-  axis.title.x = element_blank(),
-  axis.ticks.x = element_blank()
-)
 
 average_time_plot <- ggpubr::ggarrange(
   covid_average_time_plot + theme_no_x,
