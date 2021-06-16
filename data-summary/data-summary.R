@@ -178,6 +178,39 @@ flu_weekly_counts <- flu %>%
   summarise(.groups = "drop", cases = sum(count, na.rm = TRUE)) %>%
   mutate(disease = "flu")
 
+weekly_counts <- bind_rows(
+  covid_weekly_counts, covid_jhu_weekly_counts, flu_weekly_counts
+) %>%
+  inner_join(country, "country_name") %>%
+  mutate(
+    date_monday = monday_from_week_year(year, week),
+    rate_per_1e5 = cases * 1e5 / population_2020
+  ) %>%
+  filter(population_2020 > 10000)
+
+rle_but_vec <- function(country, week, year) {
+  unit <- 0
+  result <- c(unit)
+  for (index in 2:length(country)) {
+    if (country[index] != country[index - 1] |
+      (year[index] == year[index - 1] & week[index] - week[index - 1] > 1)) {
+      unit <- unit + 1
+    }
+    result[index] <- unit
+  }
+  result
+}
+
+weekly_outliers_with_names <- weekly_counts %>%
+  group_by(year, week, disease) %>%
+  filter(rate_per_1e5 == max(rate_per_1e5)) %>%
+  group_by(disease) %>%
+  mutate(unit = rle_but_vec(country_name, week, year)) %>%
+  group_by(disease, unit) %>%
+  filter(rate_per_1e5 == max(rate_per_1e5)) %>%
+  filter(rate_per_1e5 > 0) %>%
+  ungroup()
+
 plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL)) {
   xq <- rlang::enquo(x)
   yq <- rlang::enquo(y)
@@ -201,28 +234,31 @@ plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL)) {
     geom_line(aes(y = y_average), data = data_average, size = 1, col = "black")
 }
 
-weekly_counts <- bind_rows(
-  covid_weekly_counts, covid_jhu_weekly_counts, flu_weekly_counts
-) %>%
-  inner_join(country, "country_name") %>%
-  mutate(
-    date_monday = monday_from_week_year(year, week),
-    rate_per_1e5 = cases * 1e5 / population_2020
-  )
-
-covid_y_lims <- c(0, 4000)
+add_outliers <- function(plot, data) {
+  plot +
+    geom_text(
+      aes(label = country_name),
+      data = data,
+      vjust = 0.5,
+      angle = 90,
+      hjust = 0
+    )
+}
 
 covid_average_time_plot <- weekly_counts %>%
   filter(disease == "covid") %>%
-  plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_y_lims)
+  plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_y_lims) %>%
+  add_outliers(weekly_outliers_with_names %>% filter(disease == "covid"))
 
 covid_jhu_average_time_plot <- weekly_counts %>%
   filter(disease == "covid_jhu") %>%
-  plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_y_lims)
+  plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_y_lims) %>%
+  add_outliers(weekly_outliers_with_names %>% filter(disease == "covid_jhu"))
 
 flu_average_time_plot <- weekly_counts %>%
   filter(disease == "flu") %>%
-  plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000")
+  plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000", ) %>%
+  add_outliers(weekly_outliers_with_names %>% filter(disease == "flu"))
 
 stringency_average_time_plot <- stringency %>%
   plot_spag(date, stringency, "Stringency")
