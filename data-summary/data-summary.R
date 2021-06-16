@@ -245,14 +245,16 @@ add_outliers <- function(plot, data) {
     )
 }
 
+covid_ylim_time <- c(0, 4000)
+
 covid_average_time_plot <- weekly_counts %>%
   filter(disease == "covid") %>%
-  plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_y_lims) %>%
+  plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim_time) %>%
   add_outliers(weekly_outliers_with_names %>% filter(disease == "covid"))
 
 covid_jhu_average_time_plot <- weekly_counts %>%
   filter(disease == "covid_jhu") %>%
-  plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_y_lims) %>%
+  plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim_time) %>%
   add_outliers(weekly_outliers_with_names %>% filter(disease == "covid_jhu"))
 
 flu_average_time_plot <- weekly_counts %>%
