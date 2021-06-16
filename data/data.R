@@ -162,7 +162,7 @@ stringency_rks_fixed <- stringency_raw %>%
   mutate(country_code = recode(country_code, "RKS" = "KOS"))
 
 compare_vectors(
-  stringency_rks_fixed$country_code, country_rks_fixed$code3,
+  stringency_rks_fixed$country_code, country_special_fixed$code3,
   "stringency", "codes"
 ) %>%
   select(stringency) %>%
@@ -180,7 +180,7 @@ covid_cases_renamed <- covid_cases_raw %>%
   )
 
 compare_vectors(
-  covid_cases_renamed$country_code, country_rks_fixed$code2,
+  covid_cases_renamed$country_code, country_special_fixed$code2,
   "covid", "codes"
 ) %>%
   select(covid) %>%
@@ -197,7 +197,7 @@ covid_cases_codes_fixed <- covid_cases_renamed %>%
   )
 
 compare_vectors(
-  covid_cases_codes_fixed$country_code, country_rks_fixed$code2,
+  covid_cases_codes_fixed$country_code, country_special_fixed$code2,
   "covid", "codes"
 ) %>%
   select(covid) %>%
@@ -216,7 +216,8 @@ covid_jhu_lut_codes_fixed <- covid_jhu_lut_renamed %>%
   filter(code3 != "XXX") # Cruise ships
 
 compare_vectors(
-  covid_jhu_lut_codes_fixed$code3, country_rks_fixed$code3, "covid", "country"
+  covid_jhu_lut_codes_fixed$code3, country_special_fixed$code3,
+  "covid", "country"
 ) %>%
   filter(!is.na(covid)) %>%
   select(covid)
@@ -239,22 +240,38 @@ compare_vectors(
   select(case)
 
 covid_jhu_filtered <- covid_jhu_ids_fixed %>%
-  filter(Type == "Confirmed", Age == "Total", Sex == "Total")
+  filter(Type == "Confirmed", Age == "Total", Sex == "Total") %>%
+  # Multiple sources appear to report the same cases
+  group_by(ID, Date) %>%
+  filter(Cases_New == max(Cases_New)) %>%
+  filter(row_number() == 1) %>%
+  ungroup()
 
 covid_jhu_with_names <- covid_jhu_filtered %>%
-  inner_join(covid_jhu_lut_no_missing_id, "ID")
+  inner_join(covid_jhu_lut_no_missing_id, "ID") %>%
+  filter(Level == "Country")
 
 compare_vectors(
-  covid_jhu_with_names$code3, country_rks_fixed$code3, "case", "country"
+  covid_jhu_with_names$code3, country_special_fixed$code3, "case", "country"
 ) %>%
   filter(!is.na(case)) %>%
   select(case)
 
 covid_jhu_with_countries <- covid_jhu_with_names %>%
-  inner_join(country_final, "code3")
+  inner_join(country_special_fixed, "code3")
 
 unique(covid_jhu_with_countries$Age)
 unique(covid_jhu_with_countries$Sex)
+unique(covid_jhu_with_countries$Admin)
+unique(covid_jhu_with_countries$Admin0)
+unique(covid_jhu_with_countries$Admin1)
+unique(covid_jhu_with_countries$Admin2)
+unique(covid_jhu_with_countries$Admin3)
+
+covid_jhu_with_countries %>%
+  filter(name == "USA", Date > lubridate::ymd("2020-05-01")) %>%
+  group_by(ID, Date) %>%
+  filter(n() > 1)
 
 covid_jhu_with_countries_renamed <- covid_jhu_with_countries %>%
   select(
