@@ -201,6 +201,8 @@ rle_but_vec <- function(country, week, year) {
   result
 }
 
+weekly_outliers_with_names %>% arrange(desc(year), desc(week))
+
 weekly_outliers_with_names <- weekly_counts %>%
   group_by(year, week, disease) %>%
   filter(rate_per_1e5 == max(rate_per_1e5)) %>%
@@ -208,7 +210,7 @@ weekly_outliers_with_names <- weekly_counts %>%
   mutate(unit = rle_but_vec(country_name, week, year)) %>%
   group_by(disease, unit) %>%
   filter(rate_per_1e5 == max(rate_per_1e5)) %>%
-  filter(rate_per_1e5 > 0) %>%
+  filter(rate_per_1e5 > 0, !(year == 2021 & week == 21)) %>%
   ungroup()
 
 plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL)) {
@@ -239,9 +241,13 @@ add_outliers <- function(plot, data) {
     geom_text(
       aes(label = country_name),
       data = data,
-      vjust = 0.5,
+      vjust = if_else(
+        data$country_name == "Seychelles" & data$disease == "covid_jhu", 0, 0.5
+      ),
       angle = 90,
-      hjust = 0
+      hjust = if_else(
+        data$country_name == "Seychelles" & data$disease == "covid_jhu", 0.5, 0
+      )
     )
 }
 
