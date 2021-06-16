@@ -201,30 +201,27 @@ plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL)) {
     geom_line(aes(y = y_average), data = data_average, size = 1, col = "black")
 }
 
+weekly_counts <- bind_rows(
+  covid_weekly_counts, covid_jhu_weekly_counts, flu_weekly_counts
+) %>%
+  inner_join(country, "country_name") %>%
+  mutate(
+    date_monday = monday_from_week_year(year, week),
+    rate_per_1e5 = cases * 1e5 / population_2020
+  )
+
 covid_y_lims <- c(0, 4000)
 
-covid_average_time_plot <- covid_weekly_counts %>%
-  inner_join(country, "country_name") %>%
-  mutate(
-    date_monday = monday_from_week_year(year, week),
-    rate_per_1e5 = cases * 1e5 / population_2020
-  ) %>%
+covid_average_time_plot <- weekly_counts %>%
+  filter(disease == "covid") %>%
   plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_y_lims)
 
-covid_jhu_average_time_plot <- covid_jhu_weekly_counts %>%
-  inner_join(country, "country_name") %>%
-  mutate(
-    date_monday = monday_from_week_year(year, week),
-    rate_per_1e5 = cases * 1e5 / population_2020
-  ) %>%
+covid_jhu_average_time_plot <- weekly_counts %>%
+  filter(disease == "covid_jhu") %>%
   plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_y_lims)
 
-flu_average_time_plot <- flu_weekly_counts %>%
-  inner_join(country, "country_name") %>%
-  mutate(
-    date_monday = monday_from_week_year(year, week),
-    rate_per_1e5 = cases * 1e5 / population_2020
-  ) %>%
+flu_average_time_plot <- weekly_counts %>%
+  filter(disease == "flu") %>%
   plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000")
 
 stringency_average_time_plot <- stringency %>%
