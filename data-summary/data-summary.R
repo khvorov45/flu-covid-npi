@@ -1,8 +1,8 @@
 library(tidyverse)
 
-save_plot <- function(plot, name, ...) {
+save_plot <- function(plot, name, ext = "pdf", ...) {
   ggdark::ggsave_dark(
-    glue::glue("data-summary/{name}.pdf"), plot,
+    glue::glue("data-summary/{name}.{ext}"), plot,
     units = "cm", ...
   )
 }
@@ -340,3 +340,48 @@ average_time_plot_with_flu <- ggpubr::ggarrange(
 )
 
 save_plot(average_time_plot_with_flu, "average-time-with-flu", width = 20, height = 30)
+
+one_country_plot <- function(data, covid_ylim, theme_no_x) {
+  covid_average_time_plot_with_flu <- data %>%
+    filter(disease == "covid") %>%
+    plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim)
+
+  covid_jhu_average_time_plot_with_flu <- data %>%
+    filter(disease == "covid_jhu") %>%
+    plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim)
+
+  flu_average_time_plot_with_flu <- data %>%
+    filter(disease == "flu") %>%
+    plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000", )
+
+  stringency_average_time_plot_with_flu <- stringency %>%
+    filter(date > cutoff_date_flu, country_name == unique(data$country_name)) %>%
+    plot_spag(date, stringency, "Stringency", c(0, 100))
+
+  plot <- ggpubr::ggarrange(
+    covid_average_time_plot_with_flu + theme_no_x,
+    covid_jhu_average_time_plot_with_flu + theme_no_x,
+    flu_average_time_plot_with_flu + theme_no_x,
+    stringency_average_time_plot_with_flu,
+    ncol = 1,
+    align = "v"
+  )
+
+  attr(plot, "country_name") <- unique(data$country_name)
+
+  plot
+}
+
+country_ind_plots <- weekly_counts_countries_with_flu %>%
+  group_by(country_name) %>%
+  group_split() %>%
+  map(one_country_plot, covid_ylim_time_with_flu, theme_no_x)
+
+if (!dir.exists("data-summary/country-ind")) dir.create("data-summary/country-ind")
+walk(
+  country_ind_plots,
+  ~ save_plot(
+    .x, paste0("country-ind/", attr(.x, "country_name")), "png",
+    width = 15, height = 20
+  )
+)
