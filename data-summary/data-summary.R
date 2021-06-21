@@ -314,21 +314,17 @@ weekly_counts_countries_with_flu <- weekly_counts_past_may2020 %>%
 weekly_outliers_with_names_with_flu <- weekly_counts_countries_with_flu %>%
   find_outliers()
 
-weekly_outliers_with_names_with_flu %>%
-  filter(disease == "covid") %>%
-  print(n = 100)
-
 covid_ylim_time_with_flu <- c(0, 2000)
 
 covid_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
   filter(disease == "covid") %>%
   plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim_time_with_flu) %>%
-  add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid"))
+  add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid"), covid_ylim_time_with_flu[[2]])
 
 covid_jhu_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
   filter(disease == "covid_jhu") %>%
   plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim_time_with_flu) %>%
-  add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid_jhu"))
+  add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid_jhu"), covid_ylim_time_with_flu[[2]])
 
 flu_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
   filter(disease == "flu") %>%
