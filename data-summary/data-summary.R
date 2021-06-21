@@ -192,8 +192,7 @@ rle_but_vec <- function(country, week, year) {
   unit <- 0
   result <- c(unit)
   for (index in 2:length(country)) {
-    if (country[index] != country[index - 1] |
-      (year[index] == year[index - 1] & week[index] - week[index - 1] > 1)) {
+    if (country[index] != country[index - 1]) {
       unit <- unit + 1
     }
     result[index] <- unit
@@ -201,17 +200,28 @@ rle_but_vec <- function(country, week, year) {
   result
 }
 
-weekly_outliers_with_names %>% arrange(desc(year), desc(week))
+find_outliers <- function(data) {
+  data %>%
+    group_by(year, week, disease) %>%
+    filter(rate_per_1e5 == max(rate_per_1e5)) %>%
+    slice(1) %>%
+    # filter(
+    #   date_monday <= lubridate::ymd("2020-12-01"),
+    #   date_monday >= lubridate::ymd("2020-11-01"),
+    #   disease == "flu"
+    # ) %>%
+    group_by(disease) %>%
+    arrange(year, week) %>%
+    mutate(unit = rle_but_vec(country_name, week, year)) %>%
+    group_by(disease, unit) %>%
+    filter(rate_per_1e5 == max(rate_per_1e5)) %>%
+    filter(rate_per_1e5 > 0) %>%
+    slice(1) %>%
+    ungroup()
+}
 
 weekly_outliers_with_names <- weekly_counts %>%
-  group_by(year, week, disease) %>%
-  filter(rate_per_1e5 == max(rate_per_1e5)) %>%
-  group_by(disease) %>%
-  mutate(unit = rle_but_vec(country_name, week, year)) %>%
-  group_by(disease, unit) %>%
-  filter(rate_per_1e5 == max(rate_per_1e5)) %>%
-  filter(rate_per_1e5 > 0, !(year == 2021 & week == 21)) %>%
-  ungroup()
+  find_outliers()
 
 plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL)) {
   xq <- rlang::enquo(x)
@@ -236,17 +246,20 @@ plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL)) {
     geom_line(aes(y = y_average), data = data_average, size = 1, col = "black")
 }
 
-add_outliers <- function(plot, data) {
+add_outliers <- function(plot, data, y_ceiling = NULL) {
+  if (is.null(y_ceiling)) {
+    y_ceiling <- max(data$rate_per_1e5)
+  }
   plot +
     geom_text(
       aes(label = country_name),
       data = data,
-      vjust = if_else(
-        data$country_name == "Seychelles" & data$disease == "covid_jhu", 0, 0.5
-      ),
       angle = 90,
-      hjust = if_else(
-        data$country_name == "Seychelles" & data$disease == "covid_jhu", 0.5, 0
+      hjust = if_else(data$rate_per_1e5 >= 0.8 * y_ceiling, 1, 0),
+      vjust = case_when(
+        data$date_monday == max(data$date_monday) ~ 0,
+        data$date_monday == min(data$date_monday) ~ 1,
+        TRUE ~ 0.5
       )
     )
 }
@@ -256,12 +269,12 @@ covid_ylim_time <- c(0, 4000)
 covid_average_time_plot <- weekly_counts %>%
   filter(disease == "covid") %>%
   plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim_time) %>%
-  add_outliers(weekly_outliers_with_names %>% filter(disease == "covid"))
+  add_outliers(weekly_outliers_with_names %>% filter(disease == "covid"), covid_ylim_time[[2]])
 
 covid_jhu_average_time_plot <- weekly_counts %>%
   filter(disease == "covid_jhu") %>%
   plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim_time) %>%
-  add_outliers(weekly_outliers_with_names %>% filter(disease == "covid_jhu"))
+  add_outliers(weekly_outliers_with_names %>% filter(disease == "covid_jhu"), covid_ylim_time[[2]])
 
 flu_average_time_plot <- weekly_counts %>%
   filter(disease == "flu") %>%
@@ -281,3 +294,58 @@ average_time_plot <- ggpubr::ggarrange(
 )
 
 save_plot(average_time_plot, "average-time", width = 20, height = 30)
+
+# =============================================================================
+# Look at the countries who have had flu spikes after 2020-05-01
+
+cutoff_date_flu <- lubridate::ymd("2020-05-01")
+
+weekly_counts_past_may2020 <- weekly_counts %>%
+  filter(date_monday >= cutoff_date_flu)
+
+countries_with_flu <- weekly_counts_past_may2020 %>%
+  filter(disease == "flu", rate_per_1e5 > 0.1) %>%
+  pull(country_name) %>%
+  unique()
+
+weekly_counts_countries_with_flu <- weekly_counts_past_may2020 %>%
+  filter(country_name %in% countries_with_flu)
+
+weekly_outliers_with_names_with_flu <- weekly_counts_countries_with_flu %>%
+  find_outliers()
+
+weekly_outliers_with_names_with_flu %>%
+  filter(disease == "covid") %>%
+  print(n = 100)
+
+covid_ylim_time_with_flu <- c(0, 2000)
+
+covid_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
+  filter(disease == "covid") %>%
+  plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim_time_with_flu) %>%
+  add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid"))
+
+covid_jhu_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
+  filter(disease == "covid_jhu") %>%
+  plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim_time_with_flu) %>%
+  add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid_jhu"))
+
+flu_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
+  filter(disease == "flu") %>%
+  plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000", ) %>%
+  add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "flu"))
+
+stringency_average_time_plot_with_flu <- stringency %>%
+  filter(date > cutoff_date_flu, country_name %in% countries_with_flu) %>%
+  plot_spag(date, stringency, "Stringency")
+
+average_time_plot_with_flu <- ggpubr::ggarrange(
+  covid_average_time_plot_with_flu + theme_no_x,
+  covid_jhu_average_time_plot_with_flu + theme_no_x,
+  flu_average_time_plot_with_flu + theme_no_x,
+  stringency_average_time_plot_with_flu,
+  ncol = 1,
+  align = "v"
+)
+
+save_plot(average_time_plot_with_flu, "average-time-with-flu", width = 20, height = 30)
