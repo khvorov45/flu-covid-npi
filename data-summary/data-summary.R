@@ -205,11 +205,6 @@ find_outliers <- function(data) {
     group_by(year, week, disease) %>%
     filter(rate_per_1e5 == max(rate_per_1e5)) %>%
     slice(1) %>%
-    # filter(
-    #   date_monday <= lubridate::ymd("2020-12-01"),
-    #   date_monday >= lubridate::ymd("2020-11-01"),
-    #   disease == "flu"
-    # ) %>%
     group_by(disease) %>%
     arrange(year, week) %>%
     mutate(unit = rle_but_vec(country_name, week, year)) %>%
@@ -255,7 +250,7 @@ add_outliers <- function(plot, data, y_ceiling = NULL) {
       aes(label = country_name),
       data = data,
       angle = 90,
-      hjust = if_else(data$rate_per_1e5 >= 0.8 * y_ceiling, 1, 0),
+      hjust = if_else(data$rate_per_1e5 >= 0.75 * y_ceiling, 1, 0),
       vjust = case_when(
         data$date_monday == max(data$date_monday) ~ 0,
         data$date_monday == min(data$date_monday) ~ 1,
