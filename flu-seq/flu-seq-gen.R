@@ -15,7 +15,7 @@ sequence <- read_data("sequence")
 
 # =============================================================================
 
-# Mark each count as being accomponied by a sequence within some
+# Mark each count as being accompanied by a sequence within some
 # arbitrary time period (e.g. 3 weeks each way)
 is_accompanied_by_sequence <- function(subtype_value, country_value,
                                        year, week,

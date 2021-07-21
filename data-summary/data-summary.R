@@ -28,7 +28,9 @@ covid <- read_data("covid") %>%
 covid_jhu <- read_data("covid-jhu") %>%
   filter_dates()
 
-flu <- read_data("flu") %>% filter_dates()
+flu <- read_csv("flu-seq/flu-seq.csv", col_types = cols()) %>%
+  filter_dates() %>%
+  filter(accompanied_by_sequence)
 
 country <- read_data("country") %>%
   select(country_name = name, population_2020) %>%
@@ -250,7 +252,7 @@ add_outliers <- function(plot, data, y_ceiling = NULL) {
       aes(label = country_name),
       data = data,
       angle = 90,
-      hjust = if_else(data$rate_per_1e5 >= 0.75 * y_ceiling, 1, 0),
+      hjust = if_else(data$rate_per_1e5 >= 0.7 * y_ceiling, 1, 0),
       vjust = case_when(
         data$date_monday == max(data$date_monday) ~ 0,
         data$date_monday == min(data$date_monday) ~ 1,
@@ -299,9 +301,11 @@ weekly_counts_past_may2020 <- weekly_counts %>%
   filter(date_monday >= cutoff_date_flu)
 
 countries_with_flu <- weekly_counts_past_may2020 %>%
-  filter(disease == "flu", rate_per_1e5 > 0.1) %>%
+  filter(disease == "flu", rate_per_1e5 > 0.02) %>%
   pull(country_name) %>%
   unique()
+
+length(countries_with_flu)
 
 weekly_counts_countries_with_flu <- weekly_counts_past_may2020 %>%
   filter(country_name %in% countries_with_flu)
@@ -377,7 +381,10 @@ country_ind_plots <- weekly_counts_countries_with_flu %>%
   group_split() %>%
   map(one_country_plot, covid_ylim_time_with_flu, theme_no_x)
 
-if (!dir.exists("data-summary/country-ind")) dir.create("data-summary/country-ind")
+if (dir.exists("data-summary/country-ind")) {
+  unlink("data-summary/country-ind", recursive = TRUE)
+}
+dir.create("data-summary/country-ind")
 walk(
   country_ind_plots,
   ~ save_plot(

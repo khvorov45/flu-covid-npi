@@ -1,0 +1,1 @@
+The same as average-time but showing only countries with flu activity above a threshold.
