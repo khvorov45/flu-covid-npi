@@ -35,7 +35,7 @@ extract_week_and_year <- \(d) d %>%
 
 save_data <- \(data, name) write_csv(data, glue::glue("data/{name}.csv"))
 
-# The data ====================================================================
+# SECTION The data
 
 stringency_raw <- read_raw_csv("stringency")
 
@@ -56,20 +56,18 @@ country_codes_raw <- read_raw_csv("country-codes")
 
 country_populations_raw <- read_raw_csv("country-population")
 
-# Country names have to match =================================================
+# SECTION Country codes
 
-# Country codes ===============================================================
-
-# Add Kosovo
+# NOTE(sen) Add Kosovo
 country_codes_raw %>% filter(code2 == "KS" | code3 == "KOS" | name == "Kosovo")
 country_rks_fixed <- country_codes_raw %>%
   bind_rows(tibble(name = "Kosovo", code2 = "KS", code3 = "KOS", code_num = NA))
 
-# There are some '(the)' appearances in country codes
+# NOTE(sen) There are some '(the)' appearances in country codes
 country_codes_the_fixed <- country_rks_fixed %>%
   mutate(name = str_replace(name, "\\(the\\)", "") %>% str_trim())
 
-# Special cases
+# NOTE(sen) Special cases
 country_special_fixed <- country_codes_the_fixed %>%
   mutate(
     name = recode(name,
@@ -105,7 +103,7 @@ country_special_fixed <- country_codes_the_fixed %>%
     )
   )
 
-# Country populations =========================================================
+# SECTION Country populations
 
 country_populations_renamed <- country_populations_raw %>%
   select(
@@ -143,9 +141,9 @@ compare_vectors(
   filter(!is.na(pop)) %>%
   print(n = 100)
 
-# Stringency countries ========================================================
+# SECTION Stringency countries
 
-# KOS isn't present in stringency
+# NOTE(sen) KOS isn't present in stringency
 compare_vectors(
   stringency_raw$country_code, country_codes_raw$code3,
   "stringency", "codes"
@@ -153,11 +151,11 @@ compare_vectors(
   select(stringency) %>%
   filter(!is.na(stringency))
 
-# Country code for Kosovo is KOS but the license plate code is RKS
+# NOTE(sen) Country code for Kosovo is KOS but the license plate code is RKS
 stringency_raw %>% filter(country_code == "KOS")
 stringency_raw %>% filter(country_code == "RKS")
 
-# Assume that RKS is actually Kosovo
+# NOTE(sen) Assume that RKS is actually Kosovo
 stringency_rks_fixed <- stringency_raw %>%
   mutate(country_code = recode(country_code, "RKS" = "KOS"))
 
@@ -168,7 +166,7 @@ compare_vectors(
   select(stringency) %>%
   filter(!is.na(stringency))
 
-# Covid cases countries =======================================================
+# SECTION Covid cases countries
 
 covid_cases_renamed <- covid_cases_raw %>%
   select(
@@ -188,11 +186,11 @@ compare_vectors(
 
 covid_cases_codes_fixed <- covid_cases_renamed %>%
   filter(
-    # Bonaire, Saint Eustatious and Saba
+    # NOTE(sen) Bonaire, Saint Eustatius and Saba
     !country_code %in% c("XA", "XB", "XC")
   ) %>%
   mutate(
-    # Kosovo
+    # NOTE(sen) Kosovo
     country_code = recode(country_code, "XK" = "KS")
   )
 
@@ -203,9 +201,9 @@ compare_vectors(
   select(covid) %>%
   filter(!is.na(covid))
 
-# Covid cases from JHU countries =============================================
+# SECTION Covid cases from JHU countries
 
-# The 'lookup' table (contains countries/states)
+# NOTE(sen) The 'lookup' table (contains countries/states)
 covid_jhu_lut_raw <- read_raw_csv("covid-cases-jhu-lut", guess_max = 1e5)
 
 covid_jhu_lut_renamed <- covid_jhu_lut_raw %>%
@@ -213,7 +211,7 @@ covid_jhu_lut_renamed <- covid_jhu_lut_raw %>%
 
 covid_jhu_lut_codes_fixed <- covid_jhu_lut_renamed %>%
   mutate(code3 = recode(code3, "XKX" = "KOS")) %>%
-  filter(code3 != "XXX") # Cruise ships
+  filter(code3 != "XXX") # NOTE(sen) Cruise ships
 
 compare_vectors(
   covid_jhu_lut_codes_fixed$code3, country_special_fixed$code3,
@@ -223,12 +221,12 @@ compare_vectors(
   select(covid)
 
 covid_jhu_lut_no_missing_id <- covid_jhu_lut_codes_fixed %>%
-  mutate(ID = replace_na(ID, "NA")) # This is actually Nambia
+  mutate(ID = replace_na(ID, "NA")) # NOTE(sen) This is actually Nambia
 
 # The actual data
 covid_jhu_raw <- readRDS("data-raw/covid-cases-jhu.rds")
 
-# Of course ID's in cases don't always match ID's in the 'lookup'
+# NOTE(sen) Of course ID's in cases don't always match ID's in the 'lookup'
 # table, what a joke
 covid_jhu_ids_fixed <- covid_jhu_raw %>%
   filter(!is.na(ID), !ID %in% c("XX97", "XX99", "XXXX"))
@@ -241,7 +239,7 @@ compare_vectors(
 
 covid_jhu_filtered <- covid_jhu_ids_fixed %>%
   filter(Type == "Confirmed", Age == "Total", Sex == "Total") %>%
-  # Multiple sources appear to report the same cases
+  # NOTE(sen) Multiple sources appear to report the same cases
   group_by(ID, Date) %>%
   filter(Cases_New == max(Cases_New)) %>%
   filter(row_number() == 1) %>%
@@ -286,7 +284,7 @@ covid_jhu_summarised <- covid_jhu_with_countries_renamed %>%
     cases_new = sum(cases_new, na.rm = TRUE),
   )
 
-# Flu surveillance countries ==================================================
+# SECTION Flu surveillance countries
 
 flu_surveillance_renamed <- flu_surveillance_raw %>%
   select(
@@ -308,7 +306,7 @@ flu_surveillance_renamed <- flu_surveillance_raw %>%
     count_total_neg = ALL_INF2,
   )
 
-# Special cases
+# NOTE(sen) Special cases
 flu_surveillance_special_fixed <- flu_surveillance_renamed %>%
   mutate(
     country_name = recode(
@@ -342,7 +340,7 @@ compare_vectors(
   select(flu) %>%
   filter(!is.na(flu))
 
-# Sequences countries =========================================================
+# SECTION Sequences countries
 
 sequences_renamed <- sequences_raw %>%
   select(
@@ -362,6 +360,7 @@ sequences_countries <- sequences_renamed %>%
         "United States" = "USA",
         "United Kingdom" = "UK",
         "Bolivia, Plurinationial State of" = "Bolivia",
+        # NOTE(sen) Yes, Democatic
         "Congo, the Democatic Republic of" = "DR Congo",
         "Cote d'Ivoire" = "Ivory Coast",
         "Czech Republic" = "Czechia",
@@ -382,14 +381,14 @@ compare_vectors(
   select(sequences) %>%
   filter(!is.na(sequences))
 
-# Sequences dates ============================================================
+# SECTION Sequences dates
 
 sequence_date_fixed <- sequences_countries %>%
-  # There will be NA's corresponding to incomplete dates (e.g. '2021')
+  # NOTE(sen) There will be NA's corresponding to incomplete dates (e.g. '2021')
   mutate(date = lubridate::ymd(date, quiet = TRUE)) %>%
   extract_week_and_year()
 
-# Subtype encoding ============================================================
+# SECTION Subtype encoding
 
 sequence_subtype_fixed <- sequence_date_fixed %>%
   mutate(
@@ -409,7 +408,6 @@ sequence_subtype_fixed <- sequence_date_fixed %>%
         "H9N2" = "H9"
       ),
   )
-
 
 flu_subtypes <- flu_surveillance_special_fixed %>%
   pivot_longer(
@@ -435,12 +433,13 @@ flu_subtypes <- flu_surveillance_special_fixed %>%
     )
   )
 
+# NOTE(sen) No H9 flu
 compare_vectors(
   sequence_subtype_fixed$subtype,
   flu_subtypes$subtype, "seq", "flu"
 )
 
-# Save data ===================================================================
+# SECTION Save data
 
 sequence_final <- sequence_subtype_fixed
 flu_final <- flu_subtypes
