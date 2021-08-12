@@ -20,3 +20,8 @@ https://www.iban.com/country-codes
 
 Country populations:
 https://www.worldometers.info/world-population/population-by-country/
+
+=============================
+
+Travel restrictions
+https://ourworldindata.org/covid-international-domestic-travel
