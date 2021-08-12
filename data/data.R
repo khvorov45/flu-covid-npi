@@ -39,6 +39,8 @@ save_data <- \(data, name) write_csv(data, glue::glue("data/{name}.csv"))
 
 stringency_raw <- read_raw_csv("stringency")
 
+travel_restrictions_raw <- read_raw_csv("international-travel-covid")
+
 covid_cases_raw <- read_raw_csv("covid-cases")
 
 flu_surveillance_raw <- map_dfr(
@@ -165,6 +167,21 @@ compare_vectors(
 ) %>%
   select(stringency) %>%
   filter(!is.na(stringency))
+
+# SECTION Travel restrictions countries
+
+travel_restrictions_renamed <- travel_restrictions_raw %>%
+  select(code3 = Code, date = Day, international_travel_controls)
+
+travel_restrictions_codes_fixed <- travel_restrictions_renamed %>%
+  mutate(code3 = recode(code3, "OWID_KOS" = "KOS"))
+
+compare_vectors(
+  travel_restrictions_codes_fixed$code3, country_special_fixed$code3,
+  "travel", "codes"
+) %>%
+  select(travel) %>%
+  filter(!is.na(travel))
 
 # SECTION Covid cases countries
 
@@ -529,5 +546,11 @@ compare_vectors(
   filter(!is.na(stringency))
 
 save_data(stringency_final, "stringency")
+
+travel_restriction_final <- travel_restrictions_codes_fixed %>%
+  inner_join(country_final %>% select(code3, country_name = name), "code3") %>%
+  select(-code3)
+
+save_data(travel_restriction_final, "travel-restrictions")
 
 save_data(country_final, "country")
