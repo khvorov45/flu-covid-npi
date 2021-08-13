@@ -37,7 +37,7 @@ save_data <- \(data, name) write_csv(data, glue::glue("data/{name}.csv"))
 
 # SECTION The data
 
-stringency_raw <- read_raw_csv("stringency")
+stringency_raw <- read_raw_csv("covid-stringency-index")
 
 travel_restrictions_raw <- read_raw_csv("international-travel-covid")
 
@@ -145,24 +145,14 @@ compare_vectors(
 
 # SECTION Stringency countries
 
-# NOTE(sen) KOS isn't present in stringency
-compare_vectors(
-  stringency_raw$country_code, country_codes_raw$code3,
-  "stringency", "codes"
-) %>%
-  select(stringency) %>%
-  filter(!is.na(stringency))
+stringency_raw_renamed <- stringency_raw %>%
+  select(code3 = Code, date = Day, stringency_index)
 
-# NOTE(sen) Country code for Kosovo is KOS but the license plate code is RKS
-stringency_raw %>% filter(country_code == "KOS")
-stringency_raw %>% filter(country_code == "RKS")
-
-# NOTE(sen) Assume that RKS is actually Kosovo
-stringency_rks_fixed <- stringency_raw %>%
-  mutate(country_code = recode(country_code, "RKS" = "KOS"))
+stringency_codes_fixed <- stringency_raw_renamed %>%
+  mutate(code3 = recode(code3, "OWID_KOS" = "KOS"))
 
 compare_vectors(
-  stringency_rks_fixed$country_code, country_special_fixed$code3,
+  stringency_codes_fixed$code3, country_special_fixed$code3,
   "stringency", "codes"
 ) %>%
   select(stringency) %>%
@@ -523,19 +513,12 @@ compare_vectors(
 
 save_data(covid_jhu_final, "covid-jhu")
 
-compare_vectors(
-  stringency_rks_fixed$country_code,
-  country_final$code3, "stringency", "country"
-) %>%
-  select(stringency) %>%
-  filter(!is.na(stringency))
-
-stringency_final <- stringency_rks_fixed %>%
+stringency_final <- stringency_codes_fixed %>%
   inner_join(
     country_final %>% select(code3, country_name = name),
-    by = c("country_code" = "code3")
+    by = "code3"
   ) %>%
-  select(-country_code, date = date_value) %>%
+  select(-code3, date) %>%
   extract_week_and_year()
 
 compare_vectors(
