@@ -12,23 +12,6 @@ read_csv(
   save_csv("covid-cases-jhu-lut")
 
 download.file(
-  "https://github.com/CSSEGISandData/COVID-19_Unified-Dataset/raw/master/COVID-19.rds", "data-raw/covid-cases-jhu.rds",
+  "https://github.com/CSSEGISandData/COVID-19_Unified-Dataset/raw/master/COVID-19.rds",
+  "data-raw/covid-cases-jhu.rds",
 )
-
-stringency <- httr::GET(
-  "https://covidtrackerapi.bsg.ox.ac.uk/api/v2/stringency/date-range/2020-01-01/2021-12-31",
-  httr::config(timeout = 1e6),
-  httr::progress()
-)
-
-stringency_content <- stringency %>% httr::content()
-
-stringency_dfr <- map_dfr(
-  stringency_content$data,
-  \(per_day) map_dfr(
-    per_day,
-    \(row) as_tibble(map(row, \(value) ifelse(is.null(value), NA, value)))
-  )
-)
-
-save_csv(stringency_dfr, "stringency")

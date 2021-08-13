@@ -9,18 +9,18 @@ save_plot <- function(plot, name, ext = "pdf", ...) {
 
 source("functions/monday_from_week_year.R")
 
-# The data ====================================================================
+# SECTION The data
 
 read_data <- \(name) read_csv(glue::glue("data/{name}.csv"), col_types = cols())
 
-# Relevant range for all summaries
-# 2020-03-02 -> 2021-05-30, weeks are Mon-Sun (isoweek)
+# NOTE(sen) Relevant range for all summaries
 filter_dates <- \(d) d %>% filter(
-  (year == 2020 & week >= 10) | (year == 2021 & week <= 21)
+  (year == 2020 & week >= 10) | (year == 2021 & week <= 30)
 )
 
 stringency <- read_data("stringency") %>%
   filter_dates()
+max(stringency$date)
 
 covid <- read_data("covid") %>%
   filter_dates()
