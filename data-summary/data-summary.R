@@ -24,13 +24,20 @@ max(stringency$date)
 
 covid <- read_data("covid") %>%
   filter_dates()
+max(covid$date)
 
 covid_jhu <- read_data("covid-jhu") %>%
   filter_dates()
+max(covid_jhu$date)
 
-flu <- read_csv("flu-seq/flu-seq.csv", col_types = cols()) %>%
+flu <- read_data("data/flu.csv", col_types = cols()) %>%
+  filter_dates()
+max(flu$week_start_date)
+
+flu_seq <- read_csv("flu-seq/flu-seq.csv", col_types = cols()) %>%
   filter_dates() %>%
   filter(accompanied_by_sequence)
+max(flu$week_start_date)
 
 country <- read_data("country") %>%
   select(country_name = name, population_2020) %>%
