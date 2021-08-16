@@ -22,6 +22,9 @@ stringency <- read_data("stringency") %>%
   filter_dates()
 max(stringency$date)
 
+travel_restrictions <- read_data("travel-restrictions") %>% filter_dates()
+max(travel_restrictions$date)
+
 covid <- read_data("covid") %>%
   filter_dates()
 max(covid$date)
@@ -30,21 +33,21 @@ covid_jhu <- read_data("covid-jhu") %>%
   filter_dates()
 max(covid_jhu$date)
 
-flu <- read_data("data/flu.csv", col_types = cols()) %>%
+flu <- read_data("flu") %>%
   filter_dates()
-max(flu$week_start_date)
+max(flu$week_end_date)
 
+# TODO(sen) Update (GISAID + rerun sequence detection)
 flu_seq <- read_csv("flu-seq/flu-seq.csv", col_types = cols()) %>%
   filter_dates() %>%
   filter(accompanied_by_sequence)
-max(flu$week_start_date)
+max(flu_seq$week_end_date)
 
 country <- read_data("country") %>%
   select(country_name = name, population_2020) %>%
   filter(!is.na(population_2020))
 
-# =============================================================================
-# Work out averages for a simple summary. Should have 1 observation per country.
+# SECTION Average for a simple summary. Should have 1 observation per country.
 
 flu_weekly <- flu %>%
   group_by(country_name, year, week) %>%
@@ -77,10 +80,18 @@ flu_covid_average <- flu_covid_weekly %>%
 
 stringency_average <- stringency %>%
   group_by(country_name) %>%
-  filter(!is.na(stringency)) %>%
+  filter(!is.na(stringency_index)) %>%
   summarise(
     .groups = "drop",
-    stringency_median = median(stringency, na.rm = TRUE)
+    stringency_median = median(stringency_index, na.rm = TRUE)
+  )
+
+travel_restrictions_average <- travel_restrictions %>%
+  group_by(country_name) %>%
+  filter(!is.na(international_travel_controls)) %>%
+  summarise(
+    .groups = "drop",
+    travel_restrictions_median = median(international_travel_controls)
   )
 
 countries_of_interest <- function(data) {
@@ -107,48 +118,92 @@ countries_of_interest <- function(data) {
     )
 }
 
-plot_scatter <- function(data, ylab, ylim = c(NA, NA)) {
+plot_scatter <- function(data, ylab, ylim = c(NA, NA),
+                         x_name = stringency_median,
+                         x_breaks = seq(0, 100, 10),
+                         x_lab = "Median stringency",
+                         xlim = c(0, 100),
+                         x_expand = waiver()) {
   data %>%
-    ggplot(aes(stringency_median, rate_per_1e5_median)) +
+    ggplot(aes(!!rlang::enquo(x_name), rate_per_1e5_median)) +
     theme_bw() +
     theme(
       panel.spacing = unit(0, "lines"),
       strip.background = element_blank(),
     ) +
-    coord_cartesian(xlim = c(0, 100), ylim = ylim) +
+    coord_cartesian(xlim = xlim, ylim = ylim) +
     scale_y_continuous(ylab) +
     scale_x_continuous(
-      "Median stringency",
-      breaks = seq(0, 100, 10),
-      expand = expansion(0, 0)
+      x_lab,
+      breaks = x_breaks,
+      expand = x_expand
     ) +
     geom_point() +
     geom_point(
       shape = 0, size = 4, data = . %>% countries_of_interest(), color = "red"
     ) +
-    geom_label(
-      aes(label = country_name, vjust = vjust, hjust = hjust),
-      data = . %>% countries_of_interest(),
+    ggrepel::geom_label_repel(
+      aes(label = country_name), # vjust = vjust, hjust = hjust),
+      data = . %>% countries_of_interest(), seed = 1,
       alpha = 0.5
+    ) +
+    ggrepel::geom_label_repel(
+      aes(label = country_name), # vjust = vjust, hjust = hjust),
+      data = . %>% countries_of_interest(), seed = 1,
+      fill = NA
     )
 }
 
 flu_covid_average_with_stringency <- flu_covid_average %>%
-  inner_join(stringency_average, "country_name")
+  inner_join(stringency_average, "country_name") %>%
+  inner_join(travel_restrictions_average, "country_name")
 
-flu_av_plot <- flu_covid_average_with_stringency %>%
-  filter(disease == "flu") %>%
-  plot_scatter("Flu rate per 100,000")
+flu_av_data <- flu_covid_average_with_stringency %>%
+  filter(disease == "flu")
+
+flu_av_ylab <- "Flu rate per 100,000"
+
+flu_av_plot <- flu_av_data %>%
+  plot_scatter(flu_av_ylab)
+
+plot_scatter_travel <- function(data, ylab, ylim = c(NA, NA)) {
+  plot_scatter(
+    data,
+    ylab,
+    ylim,
+    x_name = travel_restrictions_median,
+    x_breaks = 1:4, xlim = c(1, 4),
+    x_lab = "Median international travel restrictions",
+    x_expand = waiver()
+  )
+}
+
+flu_av_plot_travel <- flu_av_data %>%
+  plot_scatter_travel(flu_av_ylab)
 
 covid_ylim <- c(0, 300)
 
-covid_av_plot <- flu_covid_average_with_stringency %>%
-  filter(disease == "covid") %>%
-  plot_scatter("COVID rate per 100,000", covid_ylim)
+covid_av_data <- flu_covid_average_with_stringency %>%
+  filter(disease == "covid")
 
-covid_jhu_av_plot <- flu_covid_average_with_stringency %>%
-  filter(disease == "covid_jhu") %>%
-  plot_scatter("COVID (JHU) rate per 100,000", covid_ylim)
+covid_av_ylab <- "COVID rate per 100,000"
+
+covid_av_plot <- covid_av_data %>%
+  plot_scatter(covid_av_ylab, covid_ylim)
+
+covid_av_plot_travel <- covid_av_data %>%
+  plot_scatter_travel(covid_av_ylab, covid_ylim)
+
+covid_jhu_av_data <- flu_covid_average_with_stringency %>%
+  filter(disease == "covid_jhu")
+
+covid_jhu_av_ylab <- "COVID (JHU) rate per 100,000"
+
+covid_jhu_av_plot <- covid_jhu_av_data %>%
+  plot_scatter(covid_jhu_av_ylab, covid_ylim)
+
+covid_jhu_av_plot_travel <- covid_jhu_av_data %>%
+  plot_scatter_travel(covid_jhu_av_ylab, covid_ylim)
 
 theme_no_x <- theme(
   axis.text.x = element_blank(),
@@ -166,8 +221,17 @@ av_plots <- ggpubr::ggarrange(
 
 save_plot(av_plots, "average", width = 17, height = 20)
 
-# =============================================================================
-# Average timeline across countries
+av_plots_travel <- ggpubr::ggarrange(
+  covid_av_plot_travel + theme_no_x,
+  covid_jhu_av_plot_travel + theme_no_x,
+  flu_av_plot_travel,
+  ncol = 1,
+  align = "v"
+)
+
+save_plot(av_plots_travel, "average-travel", width = 17, height = 20)
+
+# SECTION Average timeline across countries
 
 covid_weekly_counts <- covid %>%
   filter(!is.na(cases_new)) %>%
@@ -286,7 +350,7 @@ flu_average_time_plot <- weekly_counts %>%
   add_outliers(weekly_outliers_with_names %>% filter(disease == "flu"))
 
 stringency_average_time_plot <- stringency %>%
-  plot_spag(date, stringency, "Stringency")
+  plot_spag(date, stringency_index, "Stringency")
 
 average_time_plot <- ggpubr::ggarrange(
   covid_average_time_plot + theme_no_x,
@@ -299,8 +363,7 @@ average_time_plot <- ggpubr::ggarrange(
 
 save_plot(average_time_plot, "average-time", width = 20, height = 30)
 
-# =============================================================================
-# Look at the countries who have had flu spikes after 2020-05-01
+# SECTION Look at the countries who have had flu spikes after 2020-05-01
 
 cutoff_date_flu <- lubridate::ymd("2020-05-01")
 
@@ -339,7 +402,7 @@ flu_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
 
 stringency_average_time_plot_with_flu <- stringency %>%
   filter(date > cutoff_date_flu, country_name %in% countries_with_flu) %>%
-  plot_spag(date, stringency, "Stringency")
+  plot_spag(date, stringency_index, "Stringency")
 
 average_time_plot_with_flu <- ggpubr::ggarrange(
   covid_average_time_plot_with_flu + theme_no_x,

@@ -532,7 +532,8 @@ save_data(stringency_final, "stringency")
 
 travel_restriction_final <- travel_restrictions_codes_fixed %>%
   inner_join(country_final %>% select(code3, country_name = name), "code3") %>%
-  select(-code3)
+  select(-code3) %>%
+  extract_week_and_year()
 
 save_data(travel_restriction_final, "travel-restrictions")
 
