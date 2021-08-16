@@ -37,7 +37,8 @@ flu <- read_data("flu") %>%
   filter_dates()
 max(flu$week_end_date)
 
-# TODO(sen) Update (GISAID + rerun sequence detection)
+# TODO(sen) Update (GISAID + rerun sequence detection). The problem is that
+# gisaid isn't giving letting us download anything right now
 flu_seq <- read_csv("flu-seq/flu-seq.csv", col_types = cols()) %>%
   filter_dates() %>%
   filter(accompanied_by_sequence)
@@ -352,11 +353,15 @@ flu_average_time_plot <- weekly_counts %>%
 stringency_average_time_plot <- stringency %>%
   plot_spag(date, stringency_index, "Stringency")
 
+travel_restrictions_average_time_plot <- travel_restrictions %>%
+  plot_spag(date, international_travel_controls, "Travel restrictions")
+
 average_time_plot <- ggpubr::ggarrange(
   covid_average_time_plot + theme_no_x,
   covid_jhu_average_time_plot + theme_no_x,
   flu_average_time_plot + theme_no_x,
   stringency_average_time_plot,
+  travel_restrictions_average_time_plot,
   ncol = 1,
   align = "v"
 )
