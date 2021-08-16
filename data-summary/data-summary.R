@@ -376,7 +376,7 @@ weekly_counts_past_may2020 <- weekly_counts %>%
   filter(date_monday >= cutoff_date_flu)
 
 countries_with_flu <- weekly_counts_past_may2020 %>%
-  filter(disease == "flu", rate_per_1e5 > 0.02) %>%
+  filter(disease == "flu", rate_per_1e5 > 0.1) %>%
   pull(country_name) %>%
   unique()
 
@@ -409,11 +409,16 @@ stringency_average_time_plot_with_flu <- stringency %>%
   filter(date > cutoff_date_flu, country_name %in% countries_with_flu) %>%
   plot_spag(date, stringency_index, "Stringency")
 
+travel_restrictions_average_time_plot_with_flu <- travel_restrictions %>%
+  filter(date > cutoff_date_flu, country_name %in% countries_with_flu) %>%
+  plot_spag(date, international_travel_controls, "Travel restrictions")
+
 average_time_plot_with_flu <- ggpubr::ggarrange(
   covid_average_time_plot_with_flu + theme_no_x,
   covid_jhu_average_time_plot_with_flu + theme_no_x,
   flu_average_time_plot_with_flu + theme_no_x,
   stringency_average_time_plot_with_flu,
+  travel_restrictions_average_time_plot_with_flu,
   ncol = 1,
   align = "v"
 )
@@ -435,13 +440,18 @@ one_country_plot <- function(data, covid_ylim, theme_no_x) {
 
   stringency_average_time_plot_with_flu <- stringency %>%
     filter(date > cutoff_date_flu, country_name == unique(data$country_name)) %>%
-    plot_spag(date, stringency, "Stringency", c(0, 100))
+    plot_spag(date, stringency_index, "Stringency", c(0, 100))
+
+  travel_restrictions_average_time_plot_with_flu <- travel_restrictions %>%
+    filter(date > cutoff_date_flu, country_name == unique(data$country_name)) %>%
+    plot_spag(date, international_travel_controls, "Travel restrictions", c(0, 4))
 
   plot <- ggpubr::ggarrange(
     covid_average_time_plot_with_flu + theme_no_x,
     covid_jhu_average_time_plot_with_flu + theme_no_x,
     flu_average_time_plot_with_flu + theme_no_x,
     stringency_average_time_plot_with_flu,
+    travel_restrictions_average_time_plot_with_flu,
     ncol = 1,
     align = "v"
   )
