@@ -388,7 +388,7 @@ weekly_counts_countries_with_flu <- weekly_counts_past_may2020 %>%
 weekly_outliers_with_names_with_flu <- weekly_counts_countries_with_flu %>%
   find_outliers()
 
-covid_ylim_time_with_flu <- c(0, 2000)
+covid_ylim_time_with_flu <- c(0, 1000)
 
 covid_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
   filter(disease == "covid") %>%
