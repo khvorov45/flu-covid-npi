@@ -33,16 +33,14 @@ covid_jhu <- read_data("covid-jhu") %>%
   filter_dates()
 max(covid_jhu$date)
 
-flu <- read_data("flu") %>%
+flu_no_seq <- read_data("flu") %>%
   filter_dates()
-max(flu$week_end_date)
+max(flu_no_seq$week_end_date)
 
-# TODO(sen) Update (GISAID + rerun sequence detection). The problem is that
-# gisaid isn't giving letting us download anything right now
-flu_seq <- read_csv("flu-seq/flu-seq.csv", col_types = cols()) %>%
+flu <- read_csv("flu-seq/flu-seq.csv", col_types = cols()) %>%
   filter_dates() %>%
   filter(accompanied_by_sequence)
-max(flu_seq$week_end_date)
+max(flu$week_end_date)
 
 country <- read_data("country") %>%
   select(country_name = name, population_2020) %>%
@@ -101,7 +99,7 @@ countries_of_interest <- function(data) {
       stringency_median %in% c(max(stringency_median), min(stringency_median)) |
         country_name %in% c("Australia", "USA", "UK", "India", "China") |
         rate_per_1e5_median %in% c(max(rate_per_1e5_median)) |
-        (rate_per_1e5_median > 0 & disease == "flu") |
+        (rate_per_1e5_median > 0.1 & disease == "flu") |
         (rate_per_1e5_median > 50 & stringency_median < 40 & disease == "covid")
     ) %>%
     mutate(
@@ -252,8 +250,15 @@ flu_weekly_counts <- flu %>%
   summarise(.groups = "drop", cases = sum(count, na.rm = TRUE)) %>%
   mutate(disease = "flu")
 
+flu_weekly_counts_no_seq <- flu_no_seq %>%
+  filter(!is.na(count)) %>%
+  group_by(country_name, year, week) %>%
+  summarise(.groups = "drop", cases = sum(count, na.rm = TRUE)) %>%
+  mutate(disease = "flu-no-seq")
+
 weekly_counts <- bind_rows(
-  covid_weekly_counts, covid_jhu_weekly_counts, flu_weekly_counts
+  covid_weekly_counts, covid_jhu_weekly_counts, flu_weekly_counts,
+  flu_weekly_counts_no_seq
 ) %>%
   inner_join(country, "country_name") %>%
   mutate(
@@ -376,7 +381,7 @@ weekly_counts_past_may2020 <- weekly_counts %>%
   filter(date_monday >= cutoff_date_flu)
 
 countries_with_flu <- weekly_counts_past_may2020 %>%
-  filter(disease == "flu", rate_per_1e5 > 0.1) %>%
+  filter(disease == "flu", rate_per_1e5 > 0.02) %>%
   pull(country_name) %>%
   unique()
 
@@ -388,7 +393,7 @@ weekly_counts_countries_with_flu <- weekly_counts_past_may2020 %>%
 weekly_outliers_with_names_with_flu <- weekly_counts_countries_with_flu %>%
   find_outliers()
 
-covid_ylim_time_with_flu <- c(0, 1000)
+covid_ylim_time_with_flu <- c(0, 300)
 
 covid_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
   filter(disease == "covid") %>%

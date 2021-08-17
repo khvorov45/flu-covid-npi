@@ -230,13 +230,13 @@ compare_vectors(
 covid_jhu_lut_no_missing_id <- covid_jhu_lut_codes_fixed %>%
   mutate(ID = replace_na(ID, "NA")) # NOTE(sen) This is actually Nambia
 
-# The actual data
+# NOTE(sen) The actual data
 covid_jhu_raw <- readRDS("data-raw/covid-cases-jhu.rds")
 
 # NOTE(sen) Of course ID's in cases don't always match ID's in the 'lookup'
 # table, what a joke
 covid_jhu_ids_fixed <- covid_jhu_raw %>%
-  filter(!is.na(ID), !ID %in% c("XX97", "XX99", "XXXX"))
+  filter(!is.na(ID), !ID %in% c("XX97", "XX99", "XXXX", "OLYMPICS2020"))
 
 compare_vectors(
   covid_jhu_ids_fixed$ID, covid_jhu_lut_no_missing_id$ID, "case", "lut"
@@ -244,6 +244,7 @@ compare_vectors(
   filter(!is.na(case)) %>%
   select(case)
 
+# NOTE(sen) This takes a while
 covid_jhu_filtered <- covid_jhu_ids_fixed %>%
   filter(Type == "Confirmed", Age == "Total", Sex == "Total") %>%
   # NOTE(sen) Multiple sources appear to report the same cases
@@ -440,7 +441,7 @@ flu_subtypes <- flu_surveillance_special_fixed %>%
     )
   )
 
-# NOTE(sen) No H9 flu
+# NOTE(sen) No H9, H10N3 flu
 compare_vectors(
   sequence_subtype_fixed$subtype,
   flu_subtypes$subtype, "seq", "flu"

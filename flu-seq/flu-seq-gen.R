@@ -3,8 +3,6 @@ library(tidyverse)
 source("functions/monday_from_week_year.R")
 Rcpp::sourceCpp("flu-seq/flu-seq-gen.cpp")
 
-# Data ========================================================================
-
 read_data <- \(name) read_csv(glue::glue("data/{name}.csv"), col_types = cols())
 
 flu <- read_data("flu")
@@ -13,10 +11,8 @@ stringency <- read_data("stringency")
 
 sequence <- read_data("sequence")
 
-# =============================================================================
-
-# Mark each count as being accompanied by a sequence within some
-# arbitrary time period (e.g. 3 weeks each way)
+#' Mark each count as being accompanied by a sequence within some
+#' arbitrary time period (e.g. 3 weeks each way)
 is_accompanied_by_sequence <- function(subtype_value, country_value,
                                        year, week,
                                        sequence,
@@ -37,13 +33,14 @@ country_value <- c("USA", "USA")
 year <- c(2020, 2020)
 week <- c(1, 25)
 
+# NOTE(sen) Test runs
 is_accompanied_by_sequence(
   subtype_value, country_value, year, week, sequence
 )
 
 is_accompanied_by_sequence("H1", "USA", 2020, 25, sequence)
 
-# This takes a while
+# NOTE(sen) Actual run. This takes a while
 flu_seq <- flu %>%
   mutate(
     accompanied_by_sequence = is_accompanied_by_sequence(
