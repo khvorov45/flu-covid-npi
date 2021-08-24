@@ -12,6 +12,7 @@
     "EDATE",
     "Eustatius",
     "Kitts",
+    "Leste",
     "Maarten",
     "OWID",
     "Plurinational",
@@ -22,10 +23,13 @@
     "Viet",
     "Yogoslav",
     "d'Ivoire",
+    "ddays",
     "epiflu",
     "ggrepel",
+    "ggtext",
     "httr",
     "lemy",
-    "summarised"
+    "summarised",
+    "xlims"
   ]
 }

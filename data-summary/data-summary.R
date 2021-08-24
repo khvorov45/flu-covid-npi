@@ -291,6 +291,8 @@ find_outliers <- function(data) {
     filter(rate_per_1e5 == max(rate_per_1e5)) %>%
     filter(rate_per_1e5 > 0) %>%
     slice(1) %>%
+    group_by(disease) %>%
+    filter(rate_per_1e5 > 0.1 * max(rate_per_1e5)) %>%
     ungroup()
 }
 
@@ -309,69 +311,100 @@ plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL)) {
     ggplot(aes(!!xq, !!yq)) +
     theme_bw() +
     theme(
-      legend.position = "none",
+      legend.position = "right",
       axis.text.x = element_text(angle = 45, hjust = 1),
       strip.background = element_blank()
     ) +
     coord_cartesian(ylim = ylim) +
     scale_x_date("Date", expand = expansion(0, 0), breaks = "1 month") +
     scale_y_continuous(ylab, expand = expansion(0, 0)) +
-    geom_line(aes(color = country_name), alpha = 0.5) +
-    geom_line(aes(y = y_average), data = data_average, size = 1, col = "black")
+    scale_color_manual(
+      "Country",
+      values = c(
+        "#ff0000",
+        "#00ff00",
+        "#0000ff",
+        "#00ffff",
+        "#dddd00",
+        "#ff00ff",
+        "#444444",
+        "#990000",
+        "#009900",
+        "#000099",
+        "#009999",
+        "#999900",
+        "#990099",
+        "#999999"
+      )
+    ) +
+    geom_line(aes(color = country_name), alpha = 1) +
+    geom_line(aes(y = y_average), data = data_average, size = 1, col = "gray25", lty = "1111")
 }
 
-add_outliers <- function(plot, data, y_ceiling = NULL) {
+add_outliers <- function(plot, data, y_ceiling = NULL, xlims = lubridate::ymd("2020-05-01", "2021-08-01")) {
   if (is.null(y_ceiling)) {
     y_ceiling <- max(data$rate_per_1e5)
   }
   plot +
-    geom_text(
+    ggtext::geom_richtext(
       aes(label = country_name),
       data = data,
       angle = 90,
-      hjust = if_else(data$rate_per_1e5 >= 0.7 * y_ceiling, 1, 0),
+      hjust = if_else(
+        data$rate_per_1e5 >= 0.7 * y_ceiling |
+          (data$country_name == "Nepal" & data$date_monday > lubridate::ymd("2021-07-01")),
+        1, 0
+      ),
       vjust = case_when(
-        data$date_monday == max(data$date_monday) ~ 0,
-        data$date_monday == min(data$date_monday) ~ 1,
+        data$date_monday >= xlims[[2]] - lubridate::ddays(7) ~ 0,
+        data$date_monday <= xlims[[1]] + lubridate::ddays(14) ~ 1,
         TRUE ~ 0.5
-      )
+      ),
+      size = 3.3,
+      label.padding = unit(c(0.01, 0.01, 0.01, 0.01), "lines"),
+      label.size = 0,
+      label.color = NA,
+      alpha = 0.8
     )
 }
 
 covid_ylim_time <- c(0, 4000)
 
-covid_average_time_plot <- weekly_counts %>%
-  filter(disease == "covid") %>%
-  plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim_time) %>%
-  add_outliers(weekly_outliers_with_names %>% filter(disease == "covid"), covid_ylim_time[[2]])
+# NOTE(sen) Can't have manual color scale for all the countries, so turn off
+# those plots
 
-covid_jhu_average_time_plot <- weekly_counts %>%
-  filter(disease == "covid_jhu") %>%
-  plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim_time) %>%
-  add_outliers(weekly_outliers_with_names %>% filter(disease == "covid_jhu"), covid_ylim_time[[2]])
+# covid_average_time_plot <- weekly_counts %>%
+#   filter(disease == "covid") %>%
+#   plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim_time) %>%
+#   add_outliers(weekly_outliers_with_names %>% filter(disease == "covid"), covid_ylim_time[[2]])
 
-flu_average_time_plot <- weekly_counts %>%
-  filter(disease == "flu") %>%
-  plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000", ) %>%
-  add_outliers(weekly_outliers_with_names %>% filter(disease == "flu"))
+# covid_jhu_average_time_plot <- weekly_counts %>%
+#   filter(disease == "covid_jhu") %>%
+#   plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim_time) %>%
+#   add_outliers(weekly_outliers_with_names %>% filter(disease == "covid_jhu"), covid_ylim_time[[2]])
 
-stringency_average_time_plot <- stringency %>%
-  plot_spag(date, stringency_index, "Stringency")
+# flu_average_time_plot <- weekly_counts %>%
+#   filter(disease == "flu") %>%
+#   plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000", ) %>%
+#   add_outliers(weekly_outliers_with_names %>% filter(disease == "flu"))
 
-travel_restrictions_average_time_plot <- travel_restrictions %>%
-  plot_spag(date, international_travel_controls, "Travel restrictions")
+# stringency_average_time_plot <- stringency %>%
+#   plot_spag(date, stringency_index, "Stringency")
 
-average_time_plot <- ggpubr::ggarrange(
-  covid_average_time_plot + theme_no_x,
-  covid_jhu_average_time_plot + theme_no_x,
-  flu_average_time_plot + theme_no_x,
-  stringency_average_time_plot,
-  travel_restrictions_average_time_plot,
-  ncol = 1,
-  align = "v"
-)
+# travel_restrictions_average_time_plot <- travel_restrictions %>%
+#   plot_spag(date, international_travel_controls, "Travel restrictions")
 
-save_plot(average_time_plot, "average-time", width = 20, height = 30)
+# average_time_plot <- ggpubr::ggarrange(
+#   covid_average_time_plot + theme_no_x,
+#   flu_average_time_plot + theme_no_x,
+#   stringency_average_time_plot + theme_no_x,
+#   travel_restrictions_average_time_plot,
+#   ncol = 1,
+#   align = "v",
+#   heights = c(1, 1, 1, 1.28)
+# )
+
+# save_plot(average_time_plot, "average-time", width = 20, height = 30)
 
 # SECTION Look at the countries who have had flu spikes after 2020-05-01
 
@@ -387,48 +420,65 @@ countries_with_flu <- weekly_counts_past_may2020 %>%
 
 length(countries_with_flu)
 
-weekly_counts_countries_with_flu <- weekly_counts_past_may2020 %>%
-  filter(country_name %in% countries_with_flu)
+# NOTE(sen) Separate Asia and Africa
+countries_with_flu_asia <- c("Afghanistan", "Bangladesh", "Cambodia", "China", "Lao", "Nepal", "Timor-Leste")
+all(countries_with_flu_asia %in% countries_with_flu)
+countries_with_flu_africa <- setdiff(countries_with_flu, countries_with_flu_asia)
 
-weekly_outliers_with_names_with_flu <- weekly_counts_countries_with_flu %>%
-  find_outliers()
+fun_average_with_flu <- function(countries_with_flu) {
+  weekly_counts_countries_with_flu <- weekly_counts_past_may2020 %>%
+    filter(country_name %in% countries_with_flu)
 
-covid_ylim_time_with_flu <- c(0, 300)
+  weekly_outliers_with_names_with_flu <- weekly_counts_countries_with_flu %>%
+    find_outliers()
 
-covid_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
-  filter(disease == "covid") %>%
-  plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim_time_with_flu) %>%
-  add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid"), covid_ylim_time_with_flu[[2]])
+  covid_ylim_time_with_flu <- c(0, 300)
+  flu_ylim_time_with_flu <- c(0, 0.55)
 
-covid_jhu_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
-  filter(disease == "covid_jhu") %>%
-  plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim_time_with_flu) %>%
-  add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid_jhu"), covid_ylim_time_with_flu[[2]])
+  covid_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
+    filter(disease == "covid") %>%
+    plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim_time_with_flu) %>%
+    add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid"), covid_ylim_time_with_flu[[2]])
 
-flu_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
-  filter(disease == "flu") %>%
-  plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000", ) %>%
-  add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "flu"))
+  covid_jhu_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
+    filter(disease == "covid_jhu") %>%
+    plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim_time_with_flu) %>%
+    add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid_jhu"), covid_ylim_time_with_flu[[2]])
 
-stringency_average_time_plot_with_flu <- stringency %>%
-  filter(date > cutoff_date_flu, country_name %in% countries_with_flu) %>%
-  plot_spag(date, stringency_index, "Stringency")
+  flu_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
+    filter(disease == "flu") %>%
+    plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000", flu_ylim_time_with_flu) %>%
+    add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "flu"), flu_ylim_time_with_flu[[2]])
 
-travel_restrictions_average_time_plot_with_flu <- travel_restrictions %>%
-  filter(date > cutoff_date_flu, country_name %in% countries_with_flu) %>%
-  plot_spag(date, international_travel_controls, "Travel restrictions")
+  stringency_average_time_plot_with_flu <- stringency %>%
+    filter(date > cutoff_date_flu, country_name %in% countries_with_flu) %>%
+    plot_spag(date, stringency_index, "Stringency")
 
-average_time_plot_with_flu <- ggpubr::ggarrange(
-  covid_average_time_plot_with_flu + theme_no_x,
-  covid_jhu_average_time_plot_with_flu + theme_no_x,
-  flu_average_time_plot_with_flu + theme_no_x,
-  stringency_average_time_plot_with_flu,
-  travel_restrictions_average_time_plot_with_flu,
-  ncol = 1,
-  align = "v"
-)
+  travel_restrictions_average_time_plot_with_flu <- travel_restrictions %>%
+    filter(date > cutoff_date_flu, country_name %in% countries_with_flu) %>%
+    plot_spag(date, international_travel_controls, "Travel restrictions")
+
+  average_time_plot_with_flu <- ggpubr::ggarrange(
+    covid_average_time_plot_with_flu + theme_no_x,
+    flu_average_time_plot_with_flu + theme_no_x,
+    stringency_average_time_plot_with_flu + theme_no_x,
+    travel_restrictions_average_time_plot_with_flu,
+    ncol = 1,
+    align = "v",
+    heights = c(1, 1, 1, 1.28),
+    common.legend = TRUE
+  )
+
+  average_time_plot_with_flu
+}
+
+average_time_plot_with_flu <- fun_average_with_flu(countries_with_flu)
+average_time_plot_with_flu_asia <- fun_average_with_flu(countries_with_flu_asia)
+average_time_plot_with_flu_africa <- fun_average_with_flu(countries_with_flu_africa)
 
 save_plot(average_time_plot_with_flu, "average-time-with-flu", width = 20, height = 30)
+save_plot(average_time_plot_with_flu_asia, "average-time-with-flu-asia", width = 20, height = 30)
+save_plot(average_time_plot_with_flu_africa, "average-time-with-flu-africa", width = 20, height = 30)
 
 one_country_plot <- function(data, covid_ylim, theme_no_x) {
   covid_average_time_plot_with_flu <- data %>%
@@ -453,12 +503,12 @@ one_country_plot <- function(data, covid_ylim, theme_no_x) {
 
   plot <- ggpubr::ggarrange(
     covid_average_time_plot_with_flu + theme_no_x,
-    covid_jhu_average_time_plot_with_flu + theme_no_x,
     flu_average_time_plot_with_flu + theme_no_x,
-    stringency_average_time_plot_with_flu,
+    stringency_average_time_plot_with_flu + theme_no_x,
     travel_restrictions_average_time_plot_with_flu,
     ncol = 1,
-    align = "v"
+    align = "v",
+    heights = c(1, 1, 1, 1.28)
   )
 
   attr(plot, "country_name") <- unique(data$country_name)

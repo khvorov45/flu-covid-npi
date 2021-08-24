@@ -1,1 +1,5 @@
-The same as average-time but showing only countries with flu activity above a threshold.
+Plots of COVID rate per 100,000, flu rate per 100,000, stringency index and travel restrictions from 2020-05-01 to 2021-08-01.
+
+The countries labelled on the COVID and flu rate plots are the countries that have the highest rate of the corresponding desease over that period of time as long as that rate is at least 10% of the maximum rate across all countries (to prevent cluttering of labels when disease activity is low).
+
+The dotted line in all panels is the median.
