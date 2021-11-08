@@ -299,6 +299,23 @@ find_outliers <- function(data) {
 weekly_outliers_with_names <- weekly_counts %>%
   find_outliers()
 
+country_name_cols <- c(
+  "#ff0000",
+  "#00ff00",
+  "#0000ff",
+  "#00ffff",
+  "#dddd00",
+  "#ff00ff",
+  "#444444",
+  "#990000",
+  "#009900",
+  "#000099",
+  "#009999",
+  "#999900",
+  "#990099",
+  "#999999"
+)
+
 plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL)) {
   xq <- rlang::enquo(x)
   yq <- rlang::enquo(y)
@@ -320,22 +337,7 @@ plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL)) {
     scale_y_continuous(ylab, expand = expansion(0, 0)) +
     scale_color_manual(
       "Country",
-      values = c(
-        "#ff0000",
-        "#00ff00",
-        "#0000ff",
-        "#00ffff",
-        "#dddd00",
-        "#ff00ff",
-        "#444444",
-        "#990000",
-        "#009900",
-        "#000099",
-        "#009999",
-        "#999900",
-        "#990099",
-        "#999999"
-      )
+      values = country_name_cols
     ) +
     geom_line(aes(color = country_name), alpha = 1) +
     geom_line(aes(y = y_average), data = data_average, size = 1, col = "gray25", lty = "1111")
@@ -531,4 +533,115 @@ walk(
     .x, paste0("country-ind/", attr(.x, "country_name")), "png",
     width = 15, height = 20
   )
+)
+
+# SECTION Correlation
+
+weekly_median_stringency <- stringency %>%
+  group_by(country_name, week, year) %>%
+  summarise(.groups = "drop", median_stringency = median(stringency_index))
+
+corr_data_countries_with_flu <- weekly_counts %>%
+  filter(country_name %in% countries_with_flu) %>%
+  inner_join(
+    weekly_median_stringency %>% filter(country_name %in% countries_with_flu),
+    c("country_name", "week", "year")
+  ) %>%
+  mutate(global_week = week + (year - 2020) * 53) %>%
+  arrange(country_name, disease, global_week) %>%
+  group_by(country_name, disease) %>%
+  mutate(median_stringency_2weeks_ago = lag(median_stringency, 2)) %>%
+  ungroup() %>%
+  filter(date_monday >= cutoff_date_flu, !is.na(median_stringency_2weeks_ago), !is.na(rate_per_1e5))
+
+fun_plot_corr <- function(data) {
+  data %>%
+    filter(disease %in% c("covid", "flu")) %>%
+    ggplot(aes(median_stringency_2weeks_ago, rate_per_1e5, col = country_name)) +
+    theme_bw() +
+    theme(
+      legend.position = "top",
+      panel.spacing = unit(0, "null"),
+      strip.background = element_blank()
+    ) +
+    facet_wrap(
+      ~disease,
+      nrow = 2, scale = "free_y", strip.position = "right",
+      labeller = as_labeller(function(x) recode(x, "covid" = "COVID", "flu" = "Flu"))
+    ) +
+    scale_y_continuous("Rate per 100,000") +
+    scale_x_continuous("Stringency (2 week lag)") +
+    scale_color_manual("Country", values = country_name_cols) +
+    geom_point()
+}
+
+plot_countries_with_flu_africa <- fun_plot_corr(
+  corr_data_countries_with_flu %>% filter(country_name %in% countries_with_flu_africa)
+)
+
+plot_countries_with_flu_asia <- fun_plot_corr(
+  corr_data_countries_with_flu %>% filter(country_name %in% countries_with_flu_asia)
+)
+
+ggsave("data-summary/corr-africa.pdf", plot_countries_with_flu_africa, width = 15, height = 15, units = "cm")
+ggsave("data-summary/corr-asia.pdf", plot_countries_with_flu_asia, width = 15, height = 15, units = "cm")
+
+fun_association <- function(outcome, covariate) {
+  fit <- lm(outcome ~ covariate)
+  fit_sum <- summary(fit)
+  coefs <- fit_sum$coefficients
+  association_coef <- coefs[2, "Estimate"]
+  association_coef_se <- coefs[2, "Std. Error"]
+  f <- function(x) signif(x, 2)
+  tibble(
+    association_estimate = association_coef,
+    association_se = association_coef_se,
+    association_low = association_estimate - 1.96 * association_se,
+    association_high = association_estimate + 1.96 * association_se,
+    association_95ci = glue::glue("{f(association_estimate)} ({f(association_low)}, {f(association_high)})")
+  )
+}
+
+association_estimates <- corr_data_countries_with_flu %>%
+  filter(disease %in% c("covid", "flu")) %>%
+  group_by(country_name, disease) %>%
+  # NOTE(sen) Cannot estimate otherwise (Ghana is one of the countries excluded for flu)
+  filter(length(unique(median_stringency_2weeks_ago)) > 1) %>%
+  summarise(
+    .groups = "drop",
+    fun_association(rate_per_1e5, median_stringency_2weeks_ago)
+  )
+
+write_csv(association_estimates, "data-summary/association.csv")
+
+association_plot <- association_estimates %>%
+  mutate(country_name_fct = factor(
+    country_name,
+    levels = c(countries_with_flu_africa, countries_with_flu_asia)
+  )) %>%
+  ggplot(aes(
+    country_name_fct,
+    association_estimate,
+    ymin = association_low, ymax = association_high
+  )) +
+  theme_bw() +
+  theme(
+    panel.spacing = unit(0, "null"),
+    strip.background = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  facet_wrap(
+    ~disease,
+    scales = "free_y", strip.position = "right", ncol = 1,
+    labeller = as_labeller(function(x) recode(x, "covid" = "COVID", "flu" = "Flu"))
+  ) +
+  scale_x_discrete("Country") +
+  scale_y_continuous("Linear association of stringency and disease rate (95% CI)") +
+  geom_hline(yintercept = 0, lty = "11") +
+  geom_pointrange()
+
+ggsave(
+  "data-summary/association.pdf",
+  association_plot,
+  width = 15, height = 15, units = "cm"
 )
