@@ -425,15 +425,14 @@ countries_with_flu_asia <- c("Afghanistan", "Bangladesh", "Cambodia", "China", "
 all(countries_with_flu_asia %in% countries_with_flu)
 countries_with_flu_africa <- setdiff(countries_with_flu, countries_with_flu_asia)
 
+covid_ylim_time_with_flu <- c(0, 300)
+flu_ylim_time_with_flu <- c(0, 0.55)
 fun_average_with_flu <- function(countries_with_flu) {
   weekly_counts_countries_with_flu <- weekly_counts_past_may2020 %>%
     filter(country_name %in% countries_with_flu)
 
   weekly_outliers_with_names_with_flu <- weekly_counts_countries_with_flu %>%
     find_outliers()
-
-  covid_ylim_time_with_flu <- c(0, 300)
-  flu_ylim_time_with_flu <- c(0, 0.55)
 
   covid_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
     filter(disease == "covid") %>%
@@ -516,7 +515,8 @@ one_country_plot <- function(data, covid_ylim, theme_no_x) {
   plot
 }
 
-country_ind_plots <- weekly_counts_countries_with_flu %>%
+country_ind_plots <- weekly_counts_past_may2020 %>%
+  filter(country_name %in% countries_with_flu) %>%
   group_by(country_name) %>%
   group_split() %>%
   map(one_country_plot, covid_ylim_time_with_flu, theme_no_x)
