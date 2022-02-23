@@ -1,2 +1,0 @@
-Longitudinal plots of weekly covid/flu rates (per 100,000) and stringency.
-The white lines are medians.
