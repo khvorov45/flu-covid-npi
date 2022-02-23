@@ -52,7 +52,11 @@ flu_surveillance_raw <- map_dfr(
   )
 )
 
-sequences_raw <- read_raw_xls("gisaid_epiflu_isolates", guess_max = 1e5)
+sequences_raw <- read_raw_csv(
+  "meta-virus", 
+  guess_max = 1e5, 
+  col_types = cols(zip_code = col_character())
+)
 
 country_codes_raw <- read_raw_csv("country-codes")
 
@@ -102,6 +106,8 @@ country_special_fixed <- country_codes_the_fixed %>%
       "Saint Barthélemy" = "Saint Barthelemy",
       "Russian Federation" = "Russia",
       "Micronesia (Federated States of)" = "Micronesia",
+      "Åland Islands" = "Aland Islands",
+      "Réunion" = "Reunion",
     )
   )
 
@@ -131,6 +137,7 @@ country_populations_fixed <- country_populations_renamed %>%
         "Northern Mariana Islands" = "Mariana Islands",
         "Laos" = "Lao",
         "Faeroe Islands" = "Faroe Islands",
+        "Réunion" = "Reunion",
       ) %>%
       str_replace("&", "and")
   )
@@ -184,13 +191,6 @@ covid_cases_renamed <- covid_cases_raw %>%
     deaths_new = New_deaths
   )
 
-compare_vectors(
-  covid_cases_renamed$country_code, country_special_fixed$code2,
-  "covid", "codes"
-) %>%
-  select(covid) %>%
-  filter(!is.na(covid))
-
 covid_cases_codes_fixed <- covid_cases_renamed %>%
   filter(
     # NOTE(sen) Bonaire, Saint Eustatius and Saba
@@ -236,7 +236,7 @@ covid_jhu_raw <- readRDS("data-raw/covid-cases-jhu.rds")
 # NOTE(sen) Of course ID's in cases don't always match ID's in the 'lookup'
 # table, what a joke
 covid_jhu_ids_fixed <- covid_jhu_raw %>%
-  filter(!is.na(ID), !ID %in% c("XX97", "XX99", "XXXX", "OLYMPICS2020"))
+  filter(!is.na(ID), !ID %in% c("XX97", "XX99", "XXXX", "OLYMPICS2020", "OLYMPICS"))
 
 compare_vectors(
   covid_jhu_ids_fixed$ID, covid_jhu_lut_no_missing_id$ID, "case", "lut"
@@ -349,11 +349,11 @@ compare_vectors(
   filter(!is.na(flu))
 
 # SECTION Sequences countries
-
 sequences_renamed <- sequences_raw %>%
+  filter(host == "Human") %>% 
   select(
-    virus_name = Isolate_Name, subtype = Subtype, lineage = Lineage,
-    location = Location, date = Collection_Date
+    virus_name, subtype, lineage,
+    location, date = collection_date
   )
 
 sequences_countries <- sequences_renamed %>%
@@ -379,6 +379,21 @@ sequences_countries <- sequences_renamed %>%
         "Moldova, Republic of" = "Moldova",
         "Saint Kitts and Nevis, Federation of" = "Saint Kitts and Nevis",
         "Russian Federation" = "Russia",
+        "USSR" = "Russia",
+        "Venezuela, Bolivarian Republic of" = "Venezuela",
+        "Tanzania, United Republic of" = "Tanzania",
+        "Laos" = "Lao",
+        "Syrian Arab Republic" = "Syria",
+        "SPAIN" = "Spain",
+        "Shanghai Public Health Clinical Center" = "China",
+        "Palestinian Territory" = "Palestine",
+        "Kosova" = "Kosovo",
+        "Congo, Republic of" = "Congo",
+        "Iran, Islamic Republic of" = "Iran",
+        "Libyan Arab Jamahiriya" = "Libya",
+        "Kenyatta National Hospital" = "Kenya",
+        "Micronesia, Federated States of" = "Micronesia",
+        "Northern Mariana Islands" = "Mariana Islands"
       )
   )
 

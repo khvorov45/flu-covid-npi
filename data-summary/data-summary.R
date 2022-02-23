@@ -15,7 +15,7 @@ read_data <- \(name) read_csv(glue::glue("data/{name}.csv"), col_types = cols())
 
 # NOTE(sen) Relevant range for all summaries
 filter_dates <- \(d) d %>% filter(
-  (year == 2020 & week >= 10) | (year == 2021 & week <= 30)
+  (year == 2020 & week >= 10) | (year != 2020)
 )
 
 stringency <- read_data("stringency") %>%
@@ -45,8 +45,6 @@ max(flu$week_end_date)
 country <- read_data("country") %>%
   select(country_name = name, population_2020) %>%
   filter(!is.na(population_2020))
-
-# SECTION Average for a simple summary. Should have 1 observation per country.
 
 flu_weekly <- flu %>%
   group_by(country_name, year, week) %>%
@@ -416,7 +414,7 @@ weekly_counts_past_may2020 <- weekly_counts %>%
   filter(date_monday >= cutoff_date_flu)
 
 countries_with_flu <- weekly_counts_past_may2020 %>%
-  filter(disease == "flu", rate_per_1e5 > 0.02) %>%
+  filter(disease == "flu", rate_per_1e5 > 0.6) %>%
   pull(country_name) %>%
   unique()
 
@@ -427,8 +425,8 @@ countries_with_flu_asia <- c("Afghanistan", "Bangladesh", "Cambodia", "China", "
 all(countries_with_flu_asia %in% countries_with_flu)
 countries_with_flu_africa <- setdiff(countries_with_flu, countries_with_flu_asia)
 
-covid_ylim_time_with_flu <- c(0, 300)
-flu_ylim_time_with_flu <- c(0, 0.55)
+covid_ylim_time_with_flu <- c(0, 6000)
+flu_ylim_time_with_flu <- c(0, 5)
 fun_average_with_flu <- function(countries_with_flu) {
   weekly_counts_countries_with_flu <- weekly_counts_past_may2020 %>%
     filter(country_name %in% countries_with_flu)
