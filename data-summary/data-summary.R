@@ -573,6 +573,10 @@ fun_plot_corr <- function(data) {
     geom_point()
 }
 
+plot_countries_with_flu <- fun_plot_corr(
+  corr_data_countries_with_flu
+)
+
 plot_countries_with_flu_africa <- fun_plot_corr(
   corr_data_countries_with_flu %>% filter(country_name %in% countries_with_flu_africa)
 )
@@ -581,6 +585,7 @@ plot_countries_with_flu_asia <- fun_plot_corr(
   corr_data_countries_with_flu %>% filter(country_name %in% countries_with_flu_asia)
 )
 
+ggsave("data-summary/corr.pdf", plot_countries_with_flu, width = 15, height = 15, units = "cm")
 ggsave("data-summary/corr-africa.pdf", plot_countries_with_flu_africa, width = 15, height = 15, units = "cm")
 ggsave("data-summary/corr-asia.pdf", plot_countries_with_flu_asia, width = 15, height = 15, units = "cm")
 
