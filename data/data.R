@@ -31,7 +31,7 @@ compare_vectors <- function(vec1, vec2, vec1_lbl = "in1", vec2_lbl = "in2") {
 }
 
 extract_week_and_year <- \(d) d %>%
-  mutate(week = lubridate::isoweek(date), year = lubridate::year(date))
+  mutate(week = lubridate::isoweek(date), year = lubridate::isoyear(date))
 
 save_data <- \(data, name) write_csv(data, glue::glue("data/{name}.csv"))
 

@@ -50,6 +50,8 @@ flu_weekly <- flu %>%
   group_by(country_name, year, week) %>%
   summarise(.groups = "drop", case_count = sum(count, na.rm = TRUE))
 
+covid %>% filter(year == 2022, country_name == "USA") %>% print(n = 1000)
+
 covid_weekly <- covid %>%
   group_by(country_name, year, week) %>%
   summarise(.groups = "drop", case_count = sum(cases_new, na.rm = TRUE))
@@ -414,7 +416,7 @@ weekly_counts_past_may2020 <- weekly_counts %>%
   filter(date_monday >= cutoff_date_flu)
 
 countries_with_flu <- weekly_counts_past_may2020 %>%
-  filter(disease == "flu", rate_per_1e5 > 0.6) %>%
+  filter(disease == "flu", cases > 1000) %>%
   pull(country_name) %>%
   unique()
 
@@ -425,8 +427,8 @@ countries_with_flu_asia <- c("Afghanistan", "Bangladesh", "Cambodia", "China", "
 all(countries_with_flu_asia %in% countries_with_flu)
 countries_with_flu_africa <- setdiff(countries_with_flu, countries_with_flu_asia)
 
-covid_ylim_time_with_flu <- c(0, 6000)
-flu_ylim_time_with_flu <- c(0, 5)
+covid_ylim_time_with_flu <- c(0, 2000)
+flu_ylim_time_with_flu <- c(0, 1)
 fun_average_with_flu <- function(countries_with_flu) {
   weekly_counts_countries_with_flu <- weekly_counts_past_may2020 %>%
     filter(country_name %in% countries_with_flu)
@@ -472,12 +474,12 @@ fun_average_with_flu <- function(countries_with_flu) {
 }
 
 average_time_plot_with_flu <- fun_average_with_flu(countries_with_flu)
-average_time_plot_with_flu_asia <- fun_average_with_flu(countries_with_flu_asia)
-average_time_plot_with_flu_africa <- fun_average_with_flu(countries_with_flu_africa)
+#average_time_plot_with_flu_asia <- fun_average_with_flu(countries_with_flu_asia)
+#average_time_plot_with_flu_africa <- fun_average_with_flu(countries_with_flu_africa)
 
 save_plot(average_time_plot_with_flu, "average-time-with-flu", width = 20, height = 30)
-save_plot(average_time_plot_with_flu_asia, "average-time-with-flu-asia", width = 20, height = 30)
-save_plot(average_time_plot_with_flu_africa, "average-time-with-flu-africa", width = 20, height = 30)
+#save_plot(average_time_plot_with_flu_asia, "average-time-with-flu-asia", width = 20, height = 30)
+#save_plot(average_time_plot_with_flu_africa, "average-time-with-flu-africa", width = 20, height = 30)
 
 one_country_plot <- function(data, covid_ylim, theme_no_x) {
   covid_average_time_plot_with_flu <- data %>%
@@ -586,8 +588,8 @@ plot_countries_with_flu_asia <- fun_plot_corr(
 )
 
 ggsave("data-summary/corr.pdf", plot_countries_with_flu, width = 15, height = 15, units = "cm")
-ggsave("data-summary/corr-africa.pdf", plot_countries_with_flu_africa, width = 15, height = 15, units = "cm")
-ggsave("data-summary/corr-asia.pdf", plot_countries_with_flu_asia, width = 15, height = 15, units = "cm")
+#ggsave("data-summary/corr-africa.pdf", plot_countries_with_flu_africa, width = 15, height = 15, units = "cm")
+#ggsave("data-summary/corr-asia.pdf", plot_countries_with_flu_asia, width = 15, height = 15, units = "cm")
 
 fun_association <- function(outcome, covariate) {
   fit <- lm(outcome ~ covariate)
