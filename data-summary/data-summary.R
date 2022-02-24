@@ -416,7 +416,7 @@ weekly_counts_past_may2020 <- weekly_counts %>%
   filter(date_monday >= cutoff_date_flu)
 
 countries_with_flu <- weekly_counts_past_may2020 %>%
-  filter(disease == "flu", cases > 1000) %>%
+  filter(disease == "flu", cases > 1000 | country_name == "South Africa") %>%
   pull(country_name) %>%
   unique()
 
