@@ -15,7 +15,8 @@ read_data <- \(name) read_csv(glue::glue("data/{name}.csv"), col_types = cols())
 
 # NOTE(sen) Relevant range for all summaries
 filter_dates <- \(d) d %>% filter(
-  (year == 2020 & week >= 10) | (year != 2020)
+  #(year == 2020 & week >= 10) | (year == 2021 & week <= 30)
+  #(year == 2020 & week >= 10) | (year != 2020)
 )
 
 stringency <- read_data("stringency") %>%
@@ -49,8 +50,6 @@ country <- read_data("country") %>%
 flu_weekly <- flu %>%
   group_by(country_name, year, week) %>%
   summarise(.groups = "drop", case_count = sum(count, na.rm = TRUE))
-
-covid %>% filter(year == 2022, country_name == "USA") %>% print(n = 1000)
 
 covid_weekly <- covid %>%
   group_by(country_name, year, week) %>%
@@ -210,6 +209,12 @@ theme_no_x <- theme(
   axis.ticks.x = element_blank()
 )
 
+theme_no_y <- theme(
+  axis.text.y = element_blank(),
+  axis.title.y = element_blank(),
+  axis.ticks.y = element_blank()
+)
+
 av_plots <- ggpubr::ggarrange(
   covid_av_plot + theme_no_x,
   covid_jhu_av_plot + theme_no_x,
@@ -316,7 +321,7 @@ country_name_cols <- c(
   "#999999"
 )
 
-plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL)) {
+plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL), x_breaks = "1 month", xlim = c(NULL, NULL)) {
   xq <- rlang::enquo(x)
   yq <- rlang::enquo(y)
 
@@ -332,8 +337,8 @@ plot_spag <- function(data, x, y, ylab, ylim = c(NULL, NULL)) {
       axis.text.x = element_text(angle = 45, hjust = 1),
       strip.background = element_blank()
     ) +
-    coord_cartesian(ylim = ylim) +
-    scale_x_date("Date", expand = expansion(0, 0), breaks = "1 month") +
+    coord_cartesian(ylim = ylim, xlim = xlim) +
+    scale_x_date("Date", expand = expansion(0, 0), breaks = x_breaks) +
     scale_y_continuous(ylab, expand = expansion(0, 0)) +
     scale_color_manual(
       "Country",
@@ -410,15 +415,29 @@ covid_ylim_time <- c(0, 4000)
 
 # SECTION Look at the countries who have had flu spikes after 2020-05-01
 
-cutoff_date_flu <- lubridate::ymd("2020-05-01")
+cutoff_date_flu <- lubridate::ymd("2015-01-01")
+cutoff_date_covid <- lubridate::ymd("2020-01-01")
 
-weekly_counts_past_may2020 <- weekly_counts %>%
-  filter(date_monday >= cutoff_date_flu)
+unique(weekly_counts$disease)
 
-countries_with_flu <- weekly_counts_past_may2020 %>%
+weekly_counts_past_cutoff <- weekly_counts %>%
+  filter(
+    ((disease == "flu" | disease == "flu-no-seq") & date_monday >= cutoff_date_flu) |
+    ((disease == "covid" | disease == "covid_jhu") & date_monday >= cutoff_date_covid)
+  )
+
+max(weekly_counts_past_cutoff$date_monday)
+
+countries_with_flu <- weekly_counts_past_cutoff %>%
+  #filter(disease == "flu", rate_per_1e5 > 0.02) %>%
   filter(disease == "flu", cases > 1000 | country_name == "South Africa") %>%
   pull(country_name) %>%
   unique()
+
+# countries_with_flu <- c(
+#   "Cameroon", "Ghana", "Ivory Coast", "Kenya", "Niger", "Senegal", "Togo",
+#   "Afghanistan", "Bangladesh", "Cambodia", "China", "Lao", "Nepal", "Timor-Leste"
+#)
 
 length(countries_with_flu)
 
@@ -427,47 +446,75 @@ countries_with_flu_asia <- c("Afghanistan", "Bangladesh", "Cambodia", "China", "
 all(countries_with_flu_asia %in% countries_with_flu)
 countries_with_flu_africa <- setdiff(countries_with_flu, countries_with_flu_asia)
 
-covid_ylim_time_with_flu <- c(0, 2000)
-flu_ylim_time_with_flu <- c(0, 1)
+plot_heat <- function(data, x, y, val, ylab, ylim = c(NULL, NULL), xlim = c(NULL, NULL), x_breaks = "1 month") {
+  xq <- rlang::enquo(x)
+  yq <- rlang::enquo(y)
+  valq <- rlang::enquo(val)
+
+  data %>%
+    ggplot(aes(!!xq, !!yq)) +
+    theme_bw() +
+    theme(
+      legend.position = "right",
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.background = element_blank(),
+      panel.grid.minor.x = element_blank(),
+    ) +
+    coord_cartesian(ylim = ylim, xlim = xlim) +
+    scale_x_date("Date", expand = expansion(0, 0), breaks = x_breaks) + 
+    scale_fill_viridis_c(ylab, direction = -1) + 
+    scale_color_viridis_c(ylab, direction = -1) + 
+    scale_y_discrete("Country", expand = expansion(0, 0)) + 
+    geom_tile(aes(fill = !!valq, col = !!valq)) 
+}
+
+covid_ylim_time_with_flu <- c(0, 2500)
+flu_ylim_time_with_flu <- c(0, 8)
+
 fun_average_with_flu <- function(countries_with_flu) {
-  weekly_counts_countries_with_flu <- weekly_counts_past_may2020 %>%
+  weekly_counts_countries_with_flu <- weekly_counts_past_cutoff %>%
     filter(country_name %in% countries_with_flu)
+
+  xlim <- c(cutoff_date_flu, max(weekly_counts_countries_with_flu$date_monday))
+  x_breaks <- "2 month"
 
   weekly_outliers_with_names_with_flu <- weekly_counts_countries_with_flu %>%
     find_outliers()
 
   covid_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
     filter(disease == "covid") %>%
-    plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim_time_with_flu) %>%
+    plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim_time_with_flu, xlim = xlim, x_breaks = x_breaks) %>%
     add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid"), covid_ylim_time_with_flu[[2]])
 
   covid_jhu_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
     filter(disease == "covid_jhu") %>%
-    plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim_time_with_flu) %>%
+    plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim_time_with_flu, xlim = xlim, x_breaks = x_breaks) %>%
     add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "covid_jhu"), covid_ylim_time_with_flu[[2]])
 
   flu_average_time_plot_with_flu <- weekly_counts_countries_with_flu %>%
     filter(disease == "flu") %>%
-    plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000", flu_ylim_time_with_flu) %>%
+    plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000", flu_ylim_time_with_flu, xlim = xlim, x_breaks = x_breaks) %>%
     add_outliers(weekly_outliers_with_names_with_flu %>% filter(disease == "flu"), flu_ylim_time_with_flu[[2]])
 
   stringency_average_time_plot_with_flu <- stringency %>%
-    filter(date > cutoff_date_flu, country_name %in% countries_with_flu) %>%
-    plot_spag(date, stringency_index, "Stringency")
+    filter(date > cutoff_date_covid, country_name %in% countries_with_flu) %>%
+    #plot_spag(date, stringency_index, "Stringency")
+    plot_heat(date, country_name, stringency_index, "Stringency", xlim = xlim, x_breaks = x_breaks)
 
   travel_restrictions_average_time_plot_with_flu <- travel_restrictions %>%
-    filter(date > cutoff_date_flu, country_name %in% countries_with_flu) %>%
-    plot_spag(date, international_travel_controls, "Travel restrictions")
+    filter(date > cutoff_date_covid, country_name %in% countries_with_flu) %>%
+    #plot_spag(date, international_travel_controls, "Travel restrictions")
+    plot_heat(date, country_name, international_travel_controls, "Travel restrictions", xlim = xlim, x_breaks = x_breaks)
 
   average_time_plot_with_flu <- ggpubr::ggarrange(
-    covid_average_time_plot_with_flu + theme_no_x,
     flu_average_time_plot_with_flu + theme_no_x,
+    covid_average_time_plot_with_flu + theme_no_x,
     stringency_average_time_plot_with_flu + theme_no_x,
     travel_restrictions_average_time_plot_with_flu,
     ncol = 1,
     align = "v",
     heights = c(1, 1, 1, 1.28),
-    common.legend = TRUE
+    common.legend = FALSE
   )
 
   average_time_plot_with_flu
@@ -477,39 +524,44 @@ average_time_plot_with_flu <- fun_average_with_flu(countries_with_flu)
 #average_time_plot_with_flu_asia <- fun_average_with_flu(countries_with_flu_asia)
 #average_time_plot_with_flu_africa <- fun_average_with_flu(countries_with_flu_africa)
 
-save_plot(average_time_plot_with_flu, "average-time-with-flu", width = 20, height = 30)
+save_plot(average_time_plot_with_flu, "average-time-with-flu", width = 30, height = 40)
 #save_plot(average_time_plot_with_flu_asia, "average-time-with-flu-asia", width = 20, height = 30)
 #save_plot(average_time_plot_with_flu_africa, "average-time-with-flu-africa", width = 20, height = 30)
 
 one_country_plot <- function(data, covid_ylim, theme_no_x) {
+  xlim <- c(cutoff_date_flu, max(data$date_monday))
+  x_breaks <- "6 month"
+
   covid_average_time_plot_with_flu <- data %>%
     filter(disease == "covid") %>%
-    plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", covid_ylim)
+    plot_spag(date_monday, rate_per_1e5, "COVID rate per 100,000", xlim = xlim, x_breaks = x_breaks)
 
   covid_jhu_average_time_plot_with_flu <- data %>%
     filter(disease == "covid_jhu") %>%
-    plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", covid_ylim)
+    plot_spag(date_monday, rate_per_1e5, "COVID (JHU) rate per 100,000", xlim = xlim, x_breaks = x_breaks)
 
   flu_average_time_plot_with_flu <- data %>%
     filter(disease == "flu") %>%
-    plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000", )
+    plot_spag(date_monday, rate_per_1e5, "Flu rate per 100,000", xlim = xlim, x_breaks = x_breaks)
 
   stringency_average_time_plot_with_flu <- stringency %>%
     filter(date > cutoff_date_flu, country_name == unique(data$country_name)) %>%
-    plot_spag(date, stringency_index, "Stringency", c(0, 100))
+    #plot_spag(date, stringency_index, "Stringency", c(0, 100))
+    plot_heat(date, country_name, stringency_index, "Stringency", xlim = xlim, x_breaks = x_breaks)
 
   travel_restrictions_average_time_plot_with_flu <- travel_restrictions %>%
     filter(date > cutoff_date_flu, country_name == unique(data$country_name)) %>%
-    plot_spag(date, international_travel_controls, "Travel restrictions", c(0, 4))
+    #plot_spag(date, international_travel_controls, "Travel restrictions", c(0, 4))
+    plot_heat(date, country_name, international_travel_controls, "Travel restrictions", xlim = xlim, x_breaks = x_breaks)
 
   plot <- ggpubr::ggarrange(
     covid_average_time_plot_with_flu + theme_no_x,
     flu_average_time_plot_with_flu + theme_no_x,
-    stringency_average_time_plot_with_flu + theme_no_x,
-    travel_restrictions_average_time_plot_with_flu,
+    stringency_average_time_plot_with_flu + theme_no_x + theme_no_y,
+    travel_restrictions_average_time_plot_with_flu + theme_no_y,
     ncol = 1,
     align = "v",
-    heights = c(1, 1, 1, 1.28)
+    heights = c(2, 2, 1.2, 1.6)
   )
 
   attr(plot, "country_name") <- unique(data$country_name)
@@ -517,8 +569,9 @@ one_country_plot <- function(data, covid_ylim, theme_no_x) {
   plot
 }
 
-country_ind_plots <- weekly_counts_past_may2020 %>%
+country_ind_plots <- weekly_counts_past_cutoff %>%
   filter(country_name %in% countries_with_flu) %>%
+  #filter(country_name == first(country_name)) %>% 
   group_by(country_name) %>%
   group_split() %>%
   map(one_country_plot, covid_ylim_time_with_flu, theme_no_x)
@@ -531,7 +584,7 @@ walk(
   country_ind_plots,
   ~ save_plot(
     .x, paste0("country-ind/", attr(.x, "country_name")), "png",
-    width = 15, height = 20
+    width = 25, height = 25
   )
 )
 
@@ -599,6 +652,7 @@ fun_association <- function(outcome, covariate) {
   association_coef_se <- coefs[2, "Std. Error"]
   f <- function(x) signif(x, 2)
   tibble(
+    association_n = length(fit$residuals),
     association_estimate = association_coef,
     association_se = association_coef_se,
     association_low = association_estimate - 1.96 * association_se,

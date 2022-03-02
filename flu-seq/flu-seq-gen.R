@@ -45,7 +45,7 @@ flu_seq <- flu %>%
   mutate(
     accompanied_by_sequence = is_accompanied_by_sequence(
       subtype, country_name, year, week,
-      sequence
+      sequence %>% filter(date >= lubridate::ymd("2014-12-31"))
     )
   )
 
